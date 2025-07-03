@@ -39,7 +39,7 @@ Before you begin, ensure you have the following:
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/netwatcher-py.git
+git clone https://github.com/dfelicia/netwatcher-py.git
 cd netwatcher-py
 ```
 
