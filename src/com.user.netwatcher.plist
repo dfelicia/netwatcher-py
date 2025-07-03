@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>{{LAUNCH_AGENT_LABEL}}</string>
+    <key>ProgramArguments</key>
+    <array>
+        {{COMMAND_TO_RUN}}
+    </array>
+    <key>WorkingDirectory</key>
+    <string>{{WORKING_DIRECTORY}}</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/dfelicia/Library/Logs/netwatcher.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/dfelicia/Library/Logs/netwatcher.log</string>
+</dict>
+</plist>
