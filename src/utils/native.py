@@ -8,13 +8,20 @@ It serves as the central location for all native API calls to avoid duplication.
 
 import fcntl
 import logging
+import re
 import socket
 import struct
+import subprocess
 
 try:
     import SystemConfiguration
 except ImportError:
     SystemConfiguration = None
+
+try:
+    import netifaces
+except ImportError:
+    netifaces = None
 
 
 def get_dns_info_native():
@@ -176,27 +183,48 @@ def get_default_route_interface_native():
 
 
 def get_interface_ip_native(interface):
-    """Get IP address for an interface using native socket APIs."""
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    """
+    Get IP address for a network interface.
+
+    Args:
+        interface: Network interface name (e.g., 'en0', 'Wi-Fi')
+
+    Returns:
+        str: IP address in dotted decimal notation, or None if not found
+    """
+    if netifaces:
         try:
-            # Use SIOCGIFADDR ioctl to get interface IP
-            interface_bytes = interface.encode("utf-8")[:15]  # IFNAMSIZ is 16
-            ifreq = struct.pack("16s16x", interface_bytes)
+            # Use netifaces library for cross-platform interface IP lookup
+            if interface in netifaces.interfaces():
+                addresses = netifaces.ifaddresses(interface)
+                if netifaces.AF_INET in addresses:
+                    ip = addresses[netifaces.AF_INET][0]["addr"]
+                    logging.debug(f"Found IP {ip} for interface {interface}")
+                    return ip
 
-            result = fcntl.ioctl(sock.fileno(), 0x8915, ifreq)  # SIOCGIFADDR
-            ip_bytes = result[20:24]  # sockaddr_in.sin_addr offset
-            ip = socket.inet_ntoa(ip_bytes)
-
-            logging.debug(f"Native API found IP {ip} for interface {interface}")
-            return ip
-
-        except OSError as e:
-            logging.debug(f"Interface {interface} has no IP address: {e}")
+            logging.debug(f"Interface {interface} has no IPv4 address")
             return None
-        finally:
-            sock.close()
+
+        except Exception as e:
+            logging.debug(f"Failed to get IP for interface {interface}: {e}")
+            return None
+
+    # Fallback: parse ifconfig output when netifaces is not available
+    logging.debug("netifaces not available, using command fallback")
+    try:
+        result = subprocess.run(
+            ["ifconfig", interface], capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            match = re.search(r"inet (\d+\.\d+\.\d+\.\d+)", result.stdout)
+            if match:
+                ip = match.group(1)
+                logging.debug(f"Found IP {ip} for interface {interface}")
+                return ip
+
+        logging.debug(f"Interface {interface} has no IP address")
+        return None
 
     except Exception as e:
-        logging.debug(f"Native IP lookup failed for interface {interface}: {e}")
+        logging.debug(f"Failed to get IP for interface {interface}: {e}")
         return None

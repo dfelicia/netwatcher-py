@@ -1,10 +1,6 @@
 # NetWatcher
 
-A modern macOS utility that automatically reconfigures system settings when your network environment changes. It runs as a menu bar application and background service, monitoring for network changes and applying predefined settings for different locations.
-
-## Recent Improvements
-
-NetWatcher has been recently refactored with a **modular architecture** for improved maintainability and code organization. The functionality remains the same, but the codebase is now organized into focused modules that are easier to understand and extend.
+A macOS utility that automatically reconfigures system settings when your network environment changes. It runs as a menu bar application and background service, monitoring for network changes and applying predefined settings for different locations.
 
 ## How It Works
 

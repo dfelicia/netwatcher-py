@@ -16,15 +16,17 @@ debounce_seconds = 5
 
 [locations.work]
 ssids = ["YourWorkSSID"]
-domains = ["corp.example.com"]
+dns_search_domains = ["corp.example.com"]
+dns_servers = ["10.1.1.10", "10.1.1.11"]  # Corporate DNS servers
 proxy_url = "http://proxy.example.com:8080/proxy.pac"
 printer = "Work_Printer_Name"
 ntp_server = "time.corp.example.com"
 
 [locations.home]
 ssids = ["YourHomeSSID"]
-# .home.arpa is a standard for home networks, you can add others.
-domains = [".home.arpa"]
+# home.arpa is a standard for home networks, you can add others.
+dns_search_domains = ["home.arpa"]
+dns_servers = []  # Use DHCP-provided DNS servers
 proxy_url = ""
 printer = "Home_Printer_Name"
 ntp_server = "time.apple.com"
@@ -36,7 +38,8 @@ ntp_server = "time.apple.com"
 # This is useful for ensuring a consistent state on unknown networks.
 [locations.default]
 ssids = []
-domains = [] # Add any domains you always want in your search path
+dns_search_domains = [] # Add any domains you always want in your search path
+dns_servers = ["8.8.8.8", "1.1.1.1"]  # Public DNS servers for unknown networks
 proxy_url = "" # PAC file URL or empty
 printer = "" # Name of the default printer
 ntp_server = "time.apple.com" # NTP server
@@ -44,12 +47,14 @@ ntp_server = "time.apple.com" # NTP server
 # Example for a corporate office location
 [locations.office]
 ssids = ["CorporateWifi"]
-domains = ["corp.example.com", "bam.corp.com"] # bam.corp.com will be added to DHCP domains
+dns_search_domains = ["corp.example.com", "bam.corp.com"] # bam.corp.com will be added to DHCP domains
+dns_servers = ["192.168.1.10", "192.168.1.11"]  # Office DNS servers
 proxy_url = "http://proxy.corp.example.com/wpad.dat"
 printer = "Office_Printer_1"
 ntp_server = "ntp.corp.example.com"
 
-# Optional: Configure your VPN client
-[vpn]
-client_name = "Cisco Secure Client"
-client_path = "/opt/cisco/secureclient/bin/vpn"
+# VPN Detection
+# -------------
+# VPN detection is automatic - no manual configuration required.
+# NetWatcher will automatically detect VPN connections and display status
+# information for supported VPN clients (Cisco, etc.).

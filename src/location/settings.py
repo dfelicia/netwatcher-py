@@ -140,7 +140,7 @@ def check_and_apply_location_settings(cfg):
 
     # Find and apply location settings
     location_name = find_matching_location(
-        cfg, current_ssid, current_dns_servers, current_search_domains, vpn_active
+        cfg, current_ssid, current_search_domains, vpn_active
     )
 
     if location_name in cfg.get("locations", {}):

@@ -13,7 +13,6 @@ from ..network import is_vpn_active
 def find_matching_location(
     config_data,
     current_ssid,
-    current_dns_servers,
     current_search_domains,
     vpn_active=None,
 ):

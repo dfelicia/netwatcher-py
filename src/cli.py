@@ -483,7 +483,9 @@ def configure(location_name):
 
     # --- Discover Network Settings ---
     click.echo("\nDiscovering current network environment...")
-    primary_service, primary_interface = actions.get_primary_service_interface()
+    primary_service, primary_interface, primary_service_id = (
+        actions.get_primary_service_interface()
+    )
     if not primary_service:
         click.echo("Could not determine primary network service. Exiting.", err=True)
         return
@@ -572,13 +574,41 @@ def configure(location_name):
         ):
             location_cfg["ssids"] = [current_settings["ssid"]]
 
+    # Clean up any malformed SSIDs from previous config reads
+    existing_ssids = location_cfg.get("ssids", [])
+    clean_existing_ssids = []
+    for ssid in existing_ssids:
+        if isinstance(ssid, list):
+            # Fix character arrays back to strings
+            clean_existing_ssids.append("".join(str(char) for char in ssid))
+        elif isinstance(ssid, str):
+            clean_existing_ssids.append(ssid)
+        else:
+            clean_existing_ssids.append(str(ssid))
+
     location_cfg["ssids"] = prompt_for_selection(
         "\n--- Wi-Fi Networks (SSIDs) ---",
         items=available_ssids,
-        selected_items=location_cfg.get("ssids", []),
+        selected_items=clean_existing_ssids,
         allow_multiple=True,
         manual_entry_label="SSIDs",
     )
+
+    # Ensure SSIDs are properly formatted as strings (fix common serialization bug)
+    if "ssids" in location_cfg and location_cfg["ssids"]:
+        # Fix case where SSIDs got converted to lists of characters
+        fixed_ssids = []
+        for ssid in location_cfg["ssids"]:
+            if isinstance(ssid, list):
+                # Join character list back into string
+                fixed_ssid = "".join(str(char) for char in ssid)
+                fixed_ssids.append(fixed_ssid)
+            elif isinstance(ssid, str):
+                fixed_ssids.append(ssid)
+            else:
+                # Convert other types to string
+                fixed_ssids.append(str(ssid))
+        location_cfg["ssids"] = fixed_ssids
 
     # --- Configure DNS Search Domains ---
     # If domains are not set, suggest the current ones if available.
@@ -782,6 +812,13 @@ def configure(location_name):
     # --- Save Configuration ---
     if "locations" not in cfg:
         cfg["locations"] = {}
+
+    # Convert PyObjC NSString objects to Python strings (fixes TOML serialization)
+    # This is needed because CoreWLAN returns NSString objects that toml.dump()
+    # sometimes serializes as character arrays instead of strings
+    if "ssids" in location_cfg:
+        location_cfg["ssids"] = [str(ssid) for ssid in location_cfg["ssids"]]
+
     cfg["locations"][location_name] = location_cfg
 
     try:
