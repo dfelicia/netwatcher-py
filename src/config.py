@@ -1,5 +1,12 @@
-import toml
+"""
+Configuration management for NetWatcher.
+
+This module handles loading, validation, and default configuration values
+for the NetWatcher application.
+"""
+
 import os
+import toml
 from pathlib import Path
 
 # --- App Constants ---
@@ -8,8 +15,28 @@ PLIST_FILENAME = f"com.user.{APP_NAME}.plist"
 LAUNCH_AGENT_LABEL = f"com.user.{APP_NAME}"
 LAUNCH_AGENT_DIR = Path.home() / "Library/LaunchAgents"
 LAUNCH_AGENT_PLIST_PATH = LAUNCH_AGENT_DIR / PLIST_FILENAME
-LOG_DIR = Path.home() / "Library/Logs"
-LOG_FILE = LOG_DIR / f"{APP_NAME}.log"
+LOG_DIR = Path.home() / "Library" / "Logs"
+LOG_FILE = LOG_DIR / "netwatcher.log"
+
+# --- Logging Constants ---
+LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
+LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+# --- Network Constants ---
+DEFAULT_NTP_SERVER = "time.apple.com"
+DEFAULT_DEBOUNCE_SECONDS = 5
+DEFAULT_DEBUG = False
+
+# --- External Service Constants ---
+IPINFO_TIMEOUT = 10  # seconds
+DNS_RESOLUTION_TIMEOUT = 5  # seconds
+IPINFO_API_URL = "http://ip-api.com/json"  # Primary IP info service
+
+# --- Default Port Numbers ---
+DEFAULT_HTTP_PORT = 80
+DEFAULT_HTTPS_PORT = 443
+DEFAULT_SOCKS_PORT = 1080
+DEFAULT_PROXY_PORT = 8080
 
 # Default configuration for a single location. Used for creating new locations.
 DEFAULT_LOCATION_CONFIG = {
@@ -18,15 +45,14 @@ DEFAULT_LOCATION_CONFIG = {
     "dns_servers": [],
     "proxy_url": "",
     "printer": "",
-    "ntp_server": "time.apple.com",
+    "ntp_server": DEFAULT_NTP_SERVER,
 }
 
 # Default configuration for the application
 DEFAULT_CONFIG = {
-    "settings": {"debug": False, "debounce_seconds": 5},
-    "vpn": {
-        "client_name": "Cisco Secure Client",
-        "client_path": "/opt/cisco/secureclient/bin/vpn",
+    "settings": {
+        "debug": DEFAULT_DEBUG,
+        "debounce_seconds": DEFAULT_DEBOUNCE_SECONDS,
     },
     "locations": {
         # The 'default' location acts as a fallback and a template.

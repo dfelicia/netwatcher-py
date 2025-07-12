@@ -1,19 +1,21 @@
-import click
-import platform
-import os
-import sys
-import subprocess
-import time
-import re
-import toml
 import copy
+import importlib.resources
+import os
+import platform
+import re
 import shutil
 import signal
+import subprocess
+import sys
+import time
 from pathlib import Path
-import objc
-import importlib.resources
 
-from src import config, actions
+import click
+import objc
+import toml
+
+# Use relative imports to avoid module loading conflicts
+from . import actions, config
 
 
 def signal_handler(signum, frame):
@@ -37,19 +39,31 @@ try:
         kCLAuthorizationStatusRestricted,
     )
     import CoreWLAN
+
+    CORELOCATION_AVAILABLE = True
 except ImportError:
     # This will fail on non-macOS platforms, which is fine.
-    pass
+    CORELOCATION_AVAILABLE = False
 
 
-class LocationAuthDelegate(objc.lookUpClass("NSObject")):
-    """Delegate to handle location authorization callbacks."""
+if CORELOCATION_AVAILABLE:
+    # Only define the delegate class if CoreLocation is available and not already defined
+    try:
 
-    def locationManagerDidChangeAuthorization_(self, manager):
-        """Called when location authorization status changes."""
-        # This delegate method is required, but we don't need to do anything with it.
-        # The main thread will just poll the status after requesting it.
-        pass
+        class LocationAuthDelegate(objc.lookUpClass("NSObject")):
+            """Delegate to handle location authorization callbacks."""
+
+            def locationManagerDidChangeAuthorization_(self, manager):
+                """Called when location authorization status changes."""
+                # This delegate method is required, but we don't need to do anything with it.
+                # The main thread will just poll the status after requesting it.
+                pass
+
+    except (objc.error, AttributeError):
+        # Class already exists or objc not available
+        LocationAuthDelegate = None
+else:
+    LocationAuthDelegate = None
 
 
 # --- Helper Functions ---
@@ -219,6 +233,10 @@ def get_available_ssids():
 
     # --- 2. Check and Request Location Services Authorization ---
     try:
+        if not CORELOCATION_AVAILABLE or LocationAuthDelegate is None:
+            click.echo("Location services not available - using manual SSID entry")
+            return []
+
         manager = CLLocationManager.alloc().init()
         delegate = LocationAuthDelegate.alloc().init()
         manager.setDelegate_(delegate)
@@ -315,11 +333,6 @@ def cli():
     NetWatcher automatically detects your network location and applies appropriate
     settings like DNS servers, search domains, proxy configuration, and default
     printer based on your current Wi-Fi network or other network characteristics.
-
-    Common usage:
-      netwatcher configure     # Set up a new network location
-      netwatcher test          # Test current network detection and settings
-      netwatcher service install   # Install background service
     """
     pass
 
@@ -356,7 +369,7 @@ def check():
                 ["sudo", "-n"] + [cmd_path] + test_args,
                 capture_output=True,
                 text=True,
-                timeout=10,  # 10-second timeout
+                timeout=config.IPINFO_TIMEOUT,  # Use consistent timeout
             )
 
             # For most commands, return code 0 means success
@@ -490,7 +503,6 @@ def configure(location_name):
     proxy_out = actions.run_command(
         ["networksetup", "-getautoproxyurl", primary_service],
         capture=True,
-        shell=True,  # Needed for service names with spaces
     )
     if proxy_out and "No Auto Proxy URL is set" not in proxy_out:
         match = re.search(r"URL: (.*)", proxy_out)
@@ -673,6 +685,8 @@ def configure(location_name):
                             "3",
                             "--max-time",
                             "5",
+                            "--noproxy",
+                            "*",
                             wpad_url,
                         ],
                         capture=True,
@@ -702,11 +716,15 @@ def configure(location_name):
                 )
         elif proxy_choice == "2":
             proxy_host = click.prompt("Enter HTTP proxy hostname or IP")
-            proxy_port = click.prompt("Enter HTTP proxy port", type=int, default=8080)
+            proxy_port = click.prompt(
+                "Enter HTTP proxy port", type=int, default=config.DEFAULT_PROXY_PORT
+            )
             location_cfg["proxy_url"] = f"http://{proxy_host}:{proxy_port}"
         elif proxy_choice == "3":
             proxy_host = click.prompt("Enter SOCKS proxy hostname or IP")
-            proxy_port = click.prompt("Enter SOCKS proxy port", type=int, default=1080)
+            proxy_port = click.prompt(
+                "Enter SOCKS proxy port", type=int, default=config.DEFAULT_SOCKS_PORT
+            )
             location_cfg["proxy_url"] = f"socks://{proxy_host}:{proxy_port}"
         else:
             location_cfg["proxy_url"] = ""
@@ -828,7 +846,9 @@ def test(debug):
             )
             return
 
-        location_name = actions.check_and_apply_location_settings(cfg)
+        location_name, vpn_active, vpn_details = (
+            actions.check_and_apply_location_settings(cfg)
+        )
 
         if location_name:
             click.echo(
@@ -1002,8 +1022,8 @@ def install():
     # This assumes cli.py is in src/
     project_root = Path(__file__).parent.parent
 
-    # The command should be to run the module, which is more robust
-    command_to_run = [python_executable, "-m", "src.watcher"]
+    # The command should run the watcher main function directly to avoid module import warnings
+    command_to_run = [python_executable, "-c", "from src.watcher import main; main()"]
 
     try:
         with importlib.resources.path(

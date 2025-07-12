@@ -1,72 +1,29 @@
+import importlib.resources
+import logging
 import os
+import subprocess
+from pathlib import Path
+from threading import Timer
 
-# Ensure system paths are in the PATH for launchd, which has a minimal environment.
+# Ensure system paths are in the PATH for launchd, which has a minimal environment
 os.environ["PATH"] = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:" + os.environ.get(
     "PATH", ""
 )
 
 import rumps
-import logging
-from threading import Timer
-import importlib.resources
-from pathlib import Path
 from CoreFoundation import (
-    CFRunLoopGetCurrent,
     CFRunLoopAddSource,
+    CFRunLoopGetCurrent,
     kCFRunLoopDefaultMode,
 )
-import subprocess
 from SystemConfiguration import (
     SCDynamicStoreCreate,
-    SCDynamicStoreSetNotificationKeys,
+    SCDynamicStoreCopyValue,
     SCDynamicStoreCreateRunLoopSource,
+    SCDynamicStoreSetNotificationKeys,
 )
-from SystemConfiguration import SCDynamicStoreCopyValue
 
 from . import actions, config
-
-
-class GroupSeparatorFormatter(logging.Formatter):
-    """Custom formatter that removes milliseconds and adds blank lines between message groups."""
-
-    def __init__(self, fmt, log_file_path):
-        super().__init__(fmt)
-        self.log_file_path = log_file_path
-        self.group_separation_threshold = 2.0  # seconds between message groups
-        self.state_file = Path(log_file_path).parent / ".last_log_time"
-
-    def format(self, record):
-        # Use format without milliseconds
-        self.datefmt = "%Y-%m-%d %H:%M:%S"
-        formatted = super().format(record)
-
-        # Add blank line if enough time has passed since last log message
-        import time
-
-        current_time = time.time()
-
-        # Read last log time from state file
-        last_log_time = 0
-        try:
-            if self.state_file.exists():
-                last_log_time = float(self.state_file.read_text().strip())
-        except (ValueError, FileNotFoundError):
-            pass
-
-        # Add blank line if enough time has passed
-        if (
-            last_log_time > 0
-            and (current_time - last_log_time) > self.group_separation_threshold
-        ):
-            formatted = "\n" + formatted
-
-        # Update state file with current time
-        try:
-            self.state_file.write_text(str(current_time))
-        except Exception:
-            pass  # Ignore errors writing state file
-
-        return formatted
 
 
 def setup_logging(debug):
@@ -75,26 +32,24 @@ def setup_logging(debug):
     if logging.getLogger().hasHandlers():
         logging.getLogger().handlers.clear()
 
-    log_dir = Path.home() / "Library" / "Logs" / "netwatcher"
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "netwatcher.log"
+    # Use centralized log configuration
+    config.LOG_DIR.mkdir(parents=True, exist_ok=True)
+    log_file = config.LOG_FILE
 
-    # Create custom formatter with log file path
-    formatter = GroupSeparatorFormatter(
-        "%(asctime)s - %(levelname)s - %(message)s", log_file
-    )
-
-    # Create file handler with custom formatter
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setFormatter(formatter)
-
-    # Create console handler with same formatter
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
+    # Create standard formatter without milliseconds
+    formatter = logging.Formatter(config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT)
 
     # Configure root logger
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
+
+    # Always use both file and console handlers
+    # For services, stdout/stderr are redirected to /dev/null so no duplication
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setFormatter(formatter)
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
 
@@ -115,13 +70,14 @@ class NetWatcherApp(rumps.App):
         self.config = config.load_config()
         self.current_location = None
         self.debounce_timer = None
+        self.is_evaluating = False  # Flag to prevent concurrent evaluations
         self.runloop = None
         self.store = None
 
         # Set up logging right away
-        # The debug flag is not easily available here, so we assume False.
-        # The CLI can set it up again if needed for specific commands.
-        setup_logging(debug=False)
+        # Check if config has debug enabled
+        debug_enabled = self.config.get("settings", {}).get("debug", False)
+        setup_logging(debug=debug_enabled)
 
         # Set the icon
         try:
@@ -171,6 +127,10 @@ class NetWatcherApp(rumps.App):
             source = SCDynamicStoreCreateRunLoopSource(None, self.store, 0)
             CFRunLoopAddSource(self.runloop, source, kCFRunLoopDefaultMode)
             logging.info("SystemConfiguration watcher is set up.")
+
+            # Trigger initial evaluation after a short delay
+            self.debounce_timer = Timer(1.0, self.evaluate_network_state)
+            self.debounce_timer.start()
         else:
             logging.error("Failed to create SCDynamicStore.")
 
@@ -189,7 +149,11 @@ class NetWatcherApp(rumps.App):
         ]
 
         if vpn_status:
-            menu_items.append(f"VPN: {vpn_status}")
+            # Split VPN status into separate menu items for better display
+            vpn_lines = vpn_status.split("\n")
+            for line in vpn_lines:
+                if line.strip():  # Only add non-empty lines
+                    menu_items.append(f"VPN: {line.strip()}")
 
         menu_items.append(None)
 
@@ -217,17 +181,18 @@ class NetWatcherApp(rumps.App):
         logging.info("Manual test triggered from menu bar.")
 
         # Run the evaluation
-        location_name = actions.check_and_apply_location_settings(self.config)
+        location_name, vpn_active, vpn_details = (
+            actions.check_and_apply_location_settings(self.config)
+        )
         self.current_location = location_name
 
         # Update the menu to reflect any changes
-        connection_info = actions.get_connection_details()
-        # Only check VPN details if we're actually on a VPN interface
-        vpn_status = actions.get_vpn_details() if actions.is_vpn_active() else None
+        connection_info = actions.get_connection_details(silent=True)
+        # Use VPN details from the evaluation (no need to fetch again)
         self.update_menu(
             location_name,
             connection_info=connection_info,
-            vpn_status=vpn_status,
+            vpn_status=vpn_details,
         )
 
         # Show a more informative notification with log file callback
@@ -283,35 +248,62 @@ class NetWatcherApp(rumps.App):
 
     def sc_callback(self, *args):
         """SystemConfiguration callback for network changes."""
-        logging.info("Network change detected, evaluating state.")
-        # Debounce the network state evaluation
+        # If we're already evaluating, ignore additional callbacks
+        if self.is_evaluating:
+            logging.debug("Network change detected during evaluation, ignoring")
+            return
+
+        # Cancel any existing debounce timer
+        timer_was_active = self.debounce_timer is not None
         if self.debounce_timer is not None:
             self.debounce_timer.cancel()
-        self.debounce_timer = Timer(1.0, self.evaluate_network_state)
+
+        # Only log the debounce message if there wasn't already a timer running
+        if not timer_was_active:
+            logging.info("Network change detected, evaluating after debounce")
+
+        # Simple approach like bash script: just wait for things to settle, then evaluate
+        debounce_seconds = self.config.get("settings", {}).get("debounce_seconds", 5)
+        self.debounce_timer = Timer(
+            float(debounce_seconds), self.evaluate_network_state
+        )
         self.debounce_timer.start()
 
     def evaluate_network_state(self, *args):
         """The core logic to check network and apply settings."""
-        logging.info("Evaluating network state after debounce.")
+        # Set the evaluation flag to prevent concurrent evaluations
+        if self.is_evaluating:
+            logging.debug("Evaluation already in progress, skipping")
+            return
 
-        # Reload config in case it changed
-        self.config = config.load_config()
+        self.is_evaluating = True
 
-        # This now calls the consolidated function in actions
-        location_name = actions.check_and_apply_location_settings(self.config)
-        self.current_location = location_name
+        try:
+            logging.info("Evaluating network state after debounce")
 
-        # Update connection info and VPN status for the menu
-        connection_info = actions.get_connection_details()
-        # Only check VPN details if we're actually on a VPN interface
-        vpn_status = actions.get_vpn_details() if actions.is_vpn_active() else None
+            # Reload config in case it changed
+            self.config = config.load_config()
 
-        # Update the menu bar title and menu items
-        self.update_menu(
-            location_name,
-            connection_info=connection_info,
-            vpn_status=vpn_status,
-        )
+            # This now calls the consolidated function in actions
+            location_name, vpn_active, vpn_details = (
+                actions.check_and_apply_location_settings(self.config)
+            )
+            self.current_location = location_name
+
+            # Update connection info and VPN status for the menu (fetch silently)
+            connection_info = actions.get_connection_details(silent=True)
+            # Use VPN details from the evaluation (no need to fetch again)
+
+            # Update the menu bar title and menu items
+            self.update_menu(
+                location_name,
+                connection_info=connection_info,
+                vpn_status=vpn_details,
+            )
+
+        finally:
+            # Always clear the evaluation flag
+            self.is_evaluating = False
 
     def quit_app(self, _):
         """Gracefully stop the launchd service and quit the app."""
@@ -352,7 +344,7 @@ def main(debug=False):
         logging.warning(f"Could not hide from dock: {e}")
 
     app.setup_watcher()
-    app.evaluate_network_state()  # Initial check
+    # Initial state will be evaluated by SystemConfiguration callback
     app.run()
 
 

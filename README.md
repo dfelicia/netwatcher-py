@@ -2,11 +2,15 @@
 
 A modern macOS utility that automatically reconfigures system settings when your network environment changes. It runs as a menu bar application and background service, monitoring for network changes and applying predefined settings for different locations.
 
+## Recent Improvements
+
+NetWatcher has been recently refactored with a **modular architecture** for improved maintainability and code organization. The functionality remains the same, but the codebase is now organized into focused modules that are easier to understand and extend.
+
 ## How It Works
 
 NetWatcher is built with Python and uses native macOS frameworks for reliable, event-driven network automation:
 
-- **Core Engine**: Leverages the `SystemConfiguration` framework to receive real-time notifications from macOS whenever network settings change. This is highly efficient and avoids the need for constant polling.
+- **Core Engine**: Leverages the `SystemConfiguration` framework to receive real-time notifications from macOS whenever network settings change.
 - **Menu Bar App**: A `rumps`-based application provides a simple icon in the macOS menu bar, showing current connection status and location, with the ability to manually trigger settings re-application.
 - **Configuration**: All settings are defined in a simple `config.toml` file, making it easy to manage different network profiles for home, office, or public Wi-Fi.
 - **Background Service**: The application runs as a persistent `LaunchAgent`, ensuring it starts automatically at login and runs silently in the background.
@@ -31,7 +35,7 @@ NetWatcher is built with Python and uses native macOS frameworks for reliable, e
 Before you begin, ensure you have the following:
 
 1. **macOS**: This tool is designed exclusively for macOS (tested on macOS 10.15+)
-2. **Python**: Version 3.9 or higher recommended for full compatibility
+2. **Python**: Only Apple's shipped version of Python 3 can be used (due to code signing requirements for location services)
 3. **Administrator access**: Required for network configuration changes
 
 ## Setup and Installation
@@ -145,29 +149,27 @@ Your settings are stored in `~/.config/netwatcher/config.toml`. Here's what each
 - `printer = "Office_Printer"`: Default printer name (must match System Settings)
 - `ntp_server = "time.company.com"`: Network Time Protocol (NTP) server
 
-### VPN Configuration (Optional)
+### VPN Detection
 
-Configure VPN client status checking by adding a `[vpn]` section:
+NetWatcher automatically detects VPN connections and can provide status information for supported VPN clients:
 
-```toml
-[vpn]
-client_name = "Cisco Secure Client"
-client_path = "/opt/cisco/secureclient/bin/vpn"
-```
+- **Cisco VPN**: Auto-detected when service ID contains "com.cisco" and VPN binary is found
+- **Generic VPN**: Detected via utun interface routing
+- **Status Display**: Shows connection details in menu bar when available
 
-**Note**: VPN status is only checked when the active network interface is a VPN (utun) interface.
+No manual VPN configuration is required - the tool will automatically detect and display VPN status when active.
 
 ### Example Configuration
 
 ```toml
-[vpn]
-client_name = "Cisco Secure Client"
-client_path = "/opt/cisco/secureclient/bin/vpn"
+[settings]
+debug = false
+debounce_seconds = 5
 
 [locations.Home]
 ssids = ["HomeWiFi", "HomeWiFi_5G"]
 dns_servers = []  # Use DHCP
-dns_search_domains = ["home.local"]
+dns_search_domains = ["home.arpa"]
 proxy_url = ""
 printer = "Home_Printer"
 ntp_server = "time.apple.com"
@@ -196,15 +198,67 @@ printer = ""
 ntp_server = "time.apple.com"
 ```
 
+**Note**: VPN detection and status display is automatic - no manual configuration required.
+
 ## Architecture
 
-NetWatcher consists of several modular components:
+NetWatcher uses a modular architecture for maintainability and clarity:
 
+### Core Components
 - **`src/cli.py`**: Command-line interface and service management
 - **`src/watcher.py`**: Menu bar application and network monitoring
-- **`src/actions.py`**: Network detection and system configuration logic
 - **`src/config.py`**: Configuration file handling and constants
 - **`src/com.user.netwatcher.plist`**: macOS LaunchAgent configuration template
+
+### Modular Structure
+NetWatcher is organized into focused modules:
+
+#### **`src/network/`** - Network Operations
+- **`detection.py`**: Network state detection (SSID, DNS, VPN status)
+- **`interfaces.py`**: Network interface and service management
+- **`configuration.py`**: Network settings application (DNS, proxy, NTP)
+
+#### **`src/external/`** - External Service Integrations
+- **`ipinfo.py`**: Connection details from ip-api.com
+- **`wpad.py`**: WPAD proxy configuration and curlrc management
+- **`vpn.py`**: VPN client integrations (Cisco, etc.)
+
+#### **`src/location/`** - Location Logic
+- **`matching.py`**: Network environment to location profile matching
+- **`settings.py`**: Location-specific settings application
+
+#### **`src/utils/`** - Utility Functions
+- **`commands.py`**: Command execution with error handling
+- **`native.py`**: Native macOS SystemConfiguration APIs
+
+#### **Legacy Compatibility**
+- **`src/actions.py`**: Main API module that re-exports functions from new modules
+
+This modular design makes the codebase easier to understand, maintain, and extend. New developers can focus on specific functionality without needing to understand the entire system.
+
+### Development and Imports
+
+For new development, you can import directly from specific modules:
+
+```python
+# Network operations
+from src.network import get_current_ssid, is_vpn_active, set_dns_servers
+
+# External services
+from src.external import get_connection_details, get_proxy_from_wpad
+
+# Location logic
+from src.location import find_matching_location, apply_location_settings
+
+# Utilities
+from src.utils import run_command
+```
+
+Alternatively, use the main actions module for the complete API:
+```python
+from src import actions
+# All functions available: actions.get_current_ssid(), etc.
+```
 
 ## Troubleshooting
 
@@ -229,9 +283,9 @@ NetWatcher consists of several modular components:
 - This is not optional - Wi-Fi scanning will not work with other Python versions
 
 ### VPN Detection Issues
-- VPN status is only checked when on a VPN (utun) interface
-- Verify the VPN client path in your configuration
-- Check that the VPN client supports the `stats` command
+- VPN status is only displayed when on a VPN (utun) interface
+- Cisco VPN details require the VPN CLI binary to be installed
+- Auto-detection works for most common VPN clients without configuration
 
 ## Contributing
 

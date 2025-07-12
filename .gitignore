@@ -80,3 +80,6 @@ Temporary Items
 config.toml
 *.log
 *.plist.backup
+test_*.py
+create_icon.py
+SHELL_COMMAND_ANALYSIS.md
