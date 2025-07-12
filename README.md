@@ -109,7 +109,7 @@ Install the LaunchAgent to have NetWatcher run automatically in the background:
 netwatcher service install
 ```
 
-The application will start automatically and you'll see the NetWatcher icon in your menu bar. You can monitor its activity in the log file at `~/Library/Logs/netwatcher/netwatcher.log`.
+The application will start automatically and you'll see the NetWatcher icon in your menu bar. You can monitor its activity in the log file at `~/Library/Logs/netwatcher.log`.
 
 ## Using the CLI
 
@@ -267,7 +267,7 @@ from src import actions
 - Verify the sudoers file syntax with `sudo visudo -c`
 
 ### Service Not Starting
-- Check the log file: `~/Library/Logs/netwatcher/netwatcher.log`
+- Check the log file: `~/Library/Logs/netwatcher.log`
 - Verify the LaunchAgent is loaded: `launchctl list | grep netwatcher`
 - Try restarting: `netwatcher service stop && netwatcher service start`
 
