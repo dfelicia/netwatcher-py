@@ -153,12 +153,27 @@ class NetWatcherApp(rumps.App):
             vpn_lines = vpn_status.split("\n")
             for line in vpn_lines:
                 if line.strip():  # Only add non-empty lines
-                    menu_items.append(f"VPN: {line.strip()}")
+                    stripped_line = line.strip()
+                    # Format VPN menu items with cleaner labels
+                    if stripped_line.startswith("VPN Connected to "):
+                        # Extract server from "VPN Connected to <server>"
+                        server = stripped_line.replace("VPN Connected to ", "")
+                        menu_items.append(f"VPN endpoint: {server}")
+                    elif stripped_line.startswith("IP: "):
+                        # Change "IP: <ip>" to "VPN IP: <ip>"
+                        ip = stripped_line.replace("IP: ", "")
+                        menu_items.append(f"VPN IP: {ip}")
+                    elif stripped_line.startswith("Protocol: "):
+                        # Change "Protocol: <protocol>" to "VPN Protocol: <protocol>"
+                        protocol = stripped_line.replace("Protocol: ", "")
+                        menu_items.append(f"VPN Protocol: {protocol}")
+                    else:
+                        # Fallback for any other VPN info
+                        menu_items.append(stripped_line)
 
         menu_items.append(None)
 
         if connection_info:
-            menu_items.append(rumps.MenuItem("--- Connection ---", callback=None))
             for key, value in connection_info.items():
                 # Special case for "ip" to show as "IP"
                 display_key = "IP" if key.lower() == "ip" else key.capitalize()
