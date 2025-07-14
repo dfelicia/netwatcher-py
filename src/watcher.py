@@ -175,8 +175,13 @@ class NetWatcherApp(rumps.App):
 
         if connection_info:
             for key, value in connection_info.items():
-                # Special case for "ip" to show as "IP"
-                display_key = "IP" if key.lower() == "ip" else key.capitalize()
+                # Special cases for acronyms to show as uppercase
+                if key.lower() == "ip":
+                    display_key = "IP"
+                elif key.lower() == "isp":
+                    display_key = "ISP"
+                else:
+                    display_key = key.capitalize()
                 menu_items.append(f"{display_key}: {value}")
             menu_items.append(None)
 
