@@ -3,14 +3,12 @@ import logging
 import os
 import subprocess
 from pathlib import Path
-from threading import Timer
 
 # Ensure system paths are in the PATH for launchd, which has a minimal environment
-os.environ["PATH"] = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:" + os.environ.get(
-    "PATH", ""
-)
+os.environ["PATH"] = "/usr/bin:/bin:/usr/sbin:/sbin:" + os.environ.get("PATH", "")
 
 import rumps
+from threading import Timer
 from CoreFoundation import (
     CFRunLoopAddSource,
     CFRunLoopGetCurrent,
@@ -18,7 +16,6 @@ from CoreFoundation import (
 )
 from SystemConfiguration import (
     SCDynamicStoreCreate,
-    SCDynamicStoreCopyValue,
     SCDynamicStoreCreateRunLoopSource,
     SCDynamicStoreSetNotificationKeys,
 )
@@ -139,7 +136,10 @@ class NetWatcherApp(rumps.App):
         self.title = ""  # No text, just show the icon
 
         # Clear existing menu completely to avoid duplicates
-        self.menu.clear()
+        try:
+            self.menu.clear()
+        except Exception as e:
+            logging.error(f"Menu clear error: {e}")
 
         # Build menu from scratch to avoid menu item conflicts
         menu_items = [
@@ -194,7 +194,10 @@ class NetWatcherApp(rumps.App):
             ]
         )
 
-        self.menu = menu_items
+        try:
+            self.menu = menu_items
+        except Exception as e:
+            logging.error(f"Menu assignment error: {e}")
 
     def run_test(self, _):
         """Callback to manually run a configuration test."""
