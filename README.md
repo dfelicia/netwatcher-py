@@ -18,7 +18,7 @@ NetWatcher is built with Python and uses native macOS frameworks for reliable, e
 - **Menu bar integration** with current location and connection status display
 - **Automatic network configuration** including:
   - DNS servers and search domains
-  - Proxy settings (PAC/WPAD files, HTTP/HTTPS/SOCKS proxies)
+  - Proxy settings (PAC/WPAD files, HTTP/HTTPS/SOCKS proxies) with advanced parsing via pacparser for precise detection
   - Default printer selection
   - Network Time Protocol (NTP) server configuration
 - **Command-line tool integration** with `~/.curlrc` proxy configuration

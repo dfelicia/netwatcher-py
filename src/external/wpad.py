@@ -10,6 +10,8 @@ import re
 import urllib.error
 import urllib.request
 from pathlib import Path
+import pacparser
+import tempfile
 
 
 def get_proxy_from_wpad(wpad_url):
@@ -28,15 +30,37 @@ def get_proxy_from_wpad(wpad_url):
             logging.warning("WPAD file is empty")
             return None
 
-        # Extract proxy server from WPAD content
-        match = re.search(r"PROXY\s+([a-zA-Z0-9.-]+:\d+)", wpad_content, re.IGNORECASE)
-        if match:
-            proxy_server = match.group(1)
+        # Use pacparser to evaluate the PAC file
+        pacparser.init()
+        with tempfile.NamedTemporaryFile(
+            mode="w+", suffix=".dat", delete=False
+        ) as temp_file:
+            temp_file.write(wpad_content)
+            temp_path = temp_file.name
+
+        pacparser.parse_pac_file(temp_path)
+
+        test_url = "https://brew.sh/"
+        test_host = "brew.sh"
+        result = pacparser.find_proxy(test_url, test_host)
+
+        pacparser.cleanup()
+
+        import os
+
+        os.unlink(temp_path)
+
+        # Parse the result
+        result = result.strip(";").strip()
+        if result.startswith("PROXY "):
+            proxy_server = result.split(" ")[1]
             logging.info(f"Found proxy server: {proxy_server}")
             return proxy_server
+        elif result == "DIRECT":
+            logging.info("WPAD returned DIRECT")
+            return "DIRECT"
         else:
-            logging.info("No PROXY directive found in WPAD content")
-            logging.debug(f"WPAD content preview: {wpad_content[:200]}...")
+            logging.info(f"Unexpected WPAD result: {result}")
             return None
 
     except (urllib.error.URLError, urllib.error.HTTPError) as e:
