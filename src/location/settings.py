@@ -65,9 +65,13 @@ def apply_location_settings(
     if proxy_url:
         # If it's a wpad.dat file, we need to parse it to get the actual proxy server
         if "wpad.dat" in proxy_url.lower():
-            proxy_to_use = get_proxy_from_wpad(proxy_url)
-            # We still set the system to the autodiscovery URL
-            set_proxy(service_name, proxy_url)
+            proxy_result = get_proxy_from_wpad(proxy_url)
+            if proxy_result == "DIRECT" or proxy_result is None:
+                set_proxy(service_name)  # disable proxy
+                proxy_to_use = None
+            else:
+                proxy_to_use = proxy_result
+                set_proxy(service_name, f"http://{proxy_result}")
         else:
             # It's a direct proxy address
             proxy_to_use = proxy_url
