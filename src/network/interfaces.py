@@ -291,3 +291,33 @@ def find_configurable_service_shell():
     except Exception as e:
         logging.error(f"Error finding configurable service: {e}")
         return None
+
+
+def get_all_active_services(include_vpn=False):
+    """Get list of (service_name, device) for all active network services with IP."""
+    active = []
+    try:
+        services_output = run_command(
+            ["networksetup", "-listallnetworkservices"], capture=True
+        )
+        services = [
+            line.strip()
+            for line in services_output.splitlines()
+            if line.strip() and not line.startswith("*")
+        ]
+
+        for service in services:
+            info = run_command(["networksetup", "-getinfo", service], capture=True)
+            match = re.search(r"Device: (\w+)", info)
+            if match:
+                device = match.group(1)
+                ip = get_interface_ip_native(device)
+                if ip and re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip):
+                    if include_vpn or not device.startswith(VPN_INTERFACE_PREFIX):
+                        active.append((service, device))
+                        logging.debug(
+                            f"Added active service: {service} ({device}) with IP {ip}"
+                        )
+    except Exception as e:
+        logging.error(f"Error getting active services: {e}")
+    return active

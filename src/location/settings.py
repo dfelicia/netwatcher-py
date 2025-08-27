@@ -18,74 +18,60 @@ from ..network import (
     set_proxy,
     set_default_printer,
     set_ntp_server,
+    get_all_active_services,
 )
 from ..external import get_proxy_from_wpad, get_vpn_details
 from .matching import find_matching_location
 
 
 def apply_location_settings(
-    location_config, service_name, interface_name, vpn_active=None
+    location_config,
+    service_name,
+    interface_name,
+    vpn_active=None,
+    skip_dns=False,
+    proxy_result=None,
 ):
     """Applies all settings for a given location."""
-    # Get domains from two sources:
-    # 1. The live system state (from scutil, includes DHCP, VPN, etc.)
-    # 2. The domains defined in the location's config
-    current_domains = get_current_search_domains(interface_name)
-    config_domains = location_config.get("dns_search_domains", [])
 
-    # Determine which domains to use based on VPN status and data freshness
-    if vpn_active is None:
-        vpn_active = is_vpn_active()
+    if not skip_dns:
+        current_domains = get_current_search_domains(interface_name)
+        config_domains = location_config.get("dns_search_domains", [])
 
-    if config_domains:
-        # If location has specific domains configured, use those as primary
-        if vpn_active or not current_domains:
-            # On VPN or no current domains: combine config + current
-            all_domains = list(dict.fromkeys(config_domains + current_domains))
+        # Determine which domains to use based on VPN status and data freshness
+        if vpn_active is None:
+            vpn_active = is_vpn_active()
+
+        if config_domains:
+            # If location has specific domains configured, use those as primary
+            if vpn_active or not current_domains:
+                # On VPN or no current domains: combine config + current
+                all_domains = list(dict.fromkeys(config_domains + current_domains))
+            else:
+                # Off VPN with current domains: only use config domains to avoid stale data
+                # But preserve any local domains (like .local, .arpa)
+                local_domains = [
+                    d for d in current_domains if d.endswith((".local", ".arpa"))
+                ]
+                all_domains = list(dict.fromkeys(config_domains + local_domains))
         else:
-            # Off VPN with current domains: only use config domains to avoid stale data
-            # But preserve any local domains (like .local, .arpa)
-            local_domains = [
-                d for d in current_domains if d.endswith((".local", ".arpa"))
-            ]
-            all_domains = list(dict.fromkeys(config_domains + local_domains))
-    else:
-        # Location has no specific domains: use current system domains
-        all_domains = current_domains
+            # Location has no specific domains: use current system domains
+            all_domains = current_domains
 
-    set_search_domains(service_name, all_domains)
+        set_search_domains(service_name, all_domains)
 
-    # Set DNS Servers based on the location config
-    dns_servers = location_config.get("dns_servers", [])
-    set_dns_servers(service_name, dns_servers)
+        # Set DNS Servers based on the location config
+        dns_servers = location_config.get("dns_servers", [])
+        set_dns_servers(service_name, dns_servers)
 
     # Determine proxy
-    proxy_url = location_config.get("proxy_url", "")
-    proxy_to_use = None
-    if proxy_url:
-        # If it's a wpad.dat file, we need to parse it to get the actual proxy server
-        if "wpad.dat" in proxy_url.lower():
-            proxy_result = get_proxy_from_wpad(proxy_url)
-            if proxy_result == "DIRECT" or proxy_result is None:
-                set_proxy(service_name)  # disable proxy
-                proxy_to_use = None
-            else:
-                proxy_to_use = proxy_result
-                set_proxy(service_name, f"http://{proxy_result}")
-        else:
-            # It's a direct proxy address
-            proxy_to_use = proxy_url
-            set_proxy(service_name, proxy_to_use)
+    if interface_name.startswith("utun"):
+        logging.debug(f"Skipping proxy for VPN interface {interface_name}")
     else:
-        # No proxy URL, so disable proxy settings
-        set_proxy(service_name)
-
-    if "printer" in location_config and location_config["printer"]:
-        set_default_printer(location_config["printer"])
-
-    # Set NTP server if configured
-    if "ntp_server" in location_config and location_config["ntp_server"]:
-        set_ntp_server(location_config["ntp_server"])
+        if proxy_result:
+            set_proxy(service_name, proxy_result)
+        else:
+            set_proxy(service_name)  # disable
 
 
 def check_and_apply_location_settings(cfg):
@@ -138,12 +124,37 @@ def check_and_apply_location_settings(cfg):
 
     if location_name in cfg.get("locations", {}):
         logging.info(f"Applying settings for location: {location_name}")
-        apply_location_settings(
-            cfg["locations"][location_name],
-            service_name,
-            interface,
-            vpn_active,
-        )
+        location_config = cfg["locations"][location_name]
+        proxy_url = location_config.get("proxy_url", "")
+        proxy_result = None
+        if proxy_url:
+            if "wpad.dat" in proxy_url.lower():
+                proxy_res = get_proxy_from_wpad(proxy_url)
+                if proxy_res == "DIRECT" or proxy_res is None:
+                    proxy_result = None
+                else:
+                    proxy_result = f"http://{proxy_res}"
+            else:
+                proxy_result = proxy_url
+
+        active_services = get_all_active_services()
+        for serv_name, iface in active_services:
+            logging.info(f"Applying to {serv_name} ({iface})")
+            skip_dns = vpn_active
+            apply_location_settings(
+                location_config,
+                serv_name,
+                iface,
+                vpn_active,
+                skip_dns=skip_dns,
+                proxy_result=proxy_result,
+            )
+
+        # System-wide settings
+        if "printer" in location_config and location_config["printer"]:
+            set_default_printer(location_config["printer"])
+        if "ntp_server" in location_config and location_config["ntp_server"]:
+            set_ntp_server(location_config["ntp_server"])
     else:
         logging.warning(f"Location '{location_name}' not found in config")
         return "Unknown", vpn_active, vpn_details

@@ -23,6 +23,8 @@ from .interfaces import (
     find_configurable_service,
 )
 
+from .interfaces import get_all_active_services
+
 from .configuration import (
     set_dns_servers,
     set_search_domains,
@@ -42,6 +44,7 @@ __all__ = [
     "is_vpn_active",
     "get_default_route_interface",
     "find_configurable_service",
+    "get_all_active_services",
     "set_dns_servers",
     "set_search_domains",
     "set_proxy",
