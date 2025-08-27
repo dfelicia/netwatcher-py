@@ -297,27 +297,73 @@ def get_all_active_services(include_vpn=False):
     """Get list of (service_name, device) for all active network services with IP."""
     active = []
     try:
+        # Build service_to_device from hardware ports
+        hw_output = run_command(["networksetup", "-listallhardwareports"], capture=True)
+        service_to_device = {}
+        lines = hw_output.strip().split("\n")
+        port_name = None
+        for line in lines:
+            line = line.strip()
+            if line.startswith("Hardware Port:"):
+                port_name = line.split(":", 1)[1].strip()
+            elif line.startswith("Device:") and port_name:
+                device = line.split(":", 1)[1].strip()
+                service_to_device[port_name] = device
+                port_name = None
+
         services_output = run_command(
             ["networksetup", "-listallnetworkservices"], capture=True
         )
+        lines = services_output.splitlines()
+        # Skip the first line if it's the asterisk note
+        start_index = 1 if "asterisk" in lines[0].lower() else 0
         services = [
             line.strip()
-            for line in services_output.splitlines()
+            for line in lines[start_index:]
             if line.strip() and not line.startswith("*")
         ]
 
         for service in services:
+            device = None
+            # Try to get device from hardware map
+            device = service_to_device.get(service)
+            if device:
+                logging.debug(f"Found device {device} from map for {service}")
+
+            # If not, try parsing from -getinfo
             info = run_command(["networksetup", "-getinfo", service], capture=True)
             match = re.search(r"Device: (\w+)", info)
             if match:
                 device = match.group(1)
+                logging.debug(f"Found device {device} from -getinfo for {service}")
+
+            if device:
                 ip = get_interface_ip_native(device)
+                if not ip:
+                    # Fall back to ipconfig
+                    ip_output = run_command(
+                        ["ipconfig", "getifaddr", device],
+                        capture=True,
+                        quiet_on_error=True,
+                    )
+                    if ip_output and ip_output.strip():
+                        ip = ip_output.strip()
+                        logging.debug(f"Found IP {ip} via ipconfig for {device}")
+                    else:
+                        logging.debug(f"No IP found via ipconfig for {device}")
+                else:
+                    logging.debug(f"Found IP {ip} via native for {device}")
+
                 if ip and re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip):
                     if include_vpn or not device.startswith(VPN_INTERFACE_PREFIX):
                         active.append((service, device))
                         logging.debug(
                             f"Added active service: {service} ({device}) with IP {ip}"
                         )
+                else:
+                    logging.debug(f"Invalid or no IP for {service} ({device})")
+            else:
+                logging.debug(f"No device found for {service}")
     except Exception as e:
         logging.error(f"Error getting active services: {e}")
     return active

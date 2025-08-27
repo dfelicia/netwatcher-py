@@ -356,6 +356,10 @@ def check():
         ("/usr/sbin/systemsetup", ["-getnetworktimeserver"]),
         ("/usr/sbin/lpadmin", ["-h"]),  # Help option doesn't modify anything
         ("/usr/bin/sntp", ["-h"]),  # Help option doesn't modify anything
+        ("/bin/mkdir", ["/etc/resolver"]),
+        ("/usr/bin/tee", ["/etc/resolver/netwatcher-test.tmp"]),
+        ("/bin/rm", ["-f", "/etc/resolver/netwatcher-test.tmp"]),
+        ("/usr/bin/dscacheutil", ["-flushcache"]),
     ]
 
     all_passed = True
@@ -364,12 +368,19 @@ def check():
         cmd_name = cmd_path.split("/")[-1]
         click.echo(f"  Testing {cmd_name}...", nl=False)
 
+        input_content = None
+        if cmd_path == "/usr/bin/tee":
+            input_content = (
+                "# This is a test file created by NetWatcher check. Safe to remove.\n"
+            )
+
         try:
             result = subprocess.run(
                 ["sudo", "-n"] + [cmd_path] + test_args,
                 capture_output=True,
                 text=True,
                 timeout=config.IPINFO_TIMEOUT,  # Use consistent timeout
+                input=input_content,
             )
 
             # For most commands, return code 0 means success
@@ -418,7 +429,7 @@ def check():
             "     # Allow NetWatcher to run required network commands without a password"
         )
         click.echo(
-            "     Cmnd_Alias NETWATCHER_CMDS = /usr/sbin/networksetup, /usr/sbin/systemsetup, /usr/sbin/lpadmin, /usr/bin/sntp"
+            "     Cmnd_Alias NETWATCHER_CMDS = /usr/sbin/networksetup, /usr/sbin/systemsetup, /usr/sbin/lpadmin, /usr/bin/sntp, /bin/mkdir /etc/resolver, /bin/rm /etc/resolver/*, /usr/bin/tee /etc/resolver/*, /usr/bin/dscacheutil -flushcache"
         )
         click.echo("     $USER ALL=(ALL) NOPASSWD: NETWATCHER_CMDS")
         click.echo("\nSee the README for detailed setup instructions.")
@@ -664,12 +675,17 @@ def configure(location_name):
 
     # --- Configure Proxy ---
     click.echo(click.style("\n--- Proxy Settings ---", bold=True))
-    # If proxy is not set, suggest the current one if available.
+
+    just_set_from_detection = False
+
+    # Suggest current proxy if detected and not set
     if not location_cfg.get("proxy_url") and current_settings.get("proxy_url"):
         click.echo(f"Current proxy URL detected: {current_settings['proxy_url']}")
         if ask_yes_no("Use this proxy URL?", "y"):
             location_cfg["proxy_url"] = current_settings["proxy_url"]
+            just_set_from_detection = True
 
+    # If still not set, show choice menu to set one
     if not location_cfg.get("proxy_url"):
         click.echo("\nProxy configuration options:")
         click.echo("1. Auto-configuration URL (PAC/WPAD file)")
@@ -707,32 +723,31 @@ def configure(location_name):
                     click.echo("Checking for WPAD auto-configuration...")
                     wpad_url = "http://wpad/wpad.dat"
                     # Test if WPAD URL is accessible
-                    wpad_content = actions.run_command(
-                        [
-                            "curl",
-                            "-s",
-                            "--connect-timeout",
-                            "3",
-                            "--max-time",
-                            "5",
-                            "--noproxy",
-                            "*",
-                            wpad_url,
-                        ],
-                        capture=True,
-                    )
-                    if wpad_content and "function FindProxyForURL" in wpad_content:
-                        click.echo(f"✓ Found WPAD configuration at {wpad_url}")
-                        if ask_yes_no(f"Use {wpad_url}?", "y"):
-                            location_cfg["proxy_url"] = wpad_url
-                        else:
-                            location_cfg["proxy_url"] = click.prompt(
-                                "Enter Auto Proxy Configuration URL",
-                                default="",
-                                show_default=False,
-                            )
-                    else:
-                        click.echo("✗ No WPAD configuration found")
+                    try:
+                        import urllib.request
+
+                        req = urllib.request.Request(wpad_url)
+                        with urllib.request.urlopen(req, timeout=5) as response:
+                            wpad_content = response.read().decode("utf-8")
+                            if "function FindProxyForURL" in wpad_content:
+                                click.echo(f"✓ Found WPAD configuration at {wpad_url}")
+                                if ask_yes_no(f"Use {wpad_url}?", "y"):
+                                    location_cfg["proxy_url"] = wpad_url
+                                else:
+                                    location_cfg["proxy_url"] = click.prompt(
+                                        "Enter Auto Proxy Configuration URL",
+                                        default="",
+                                        show_default=False,
+                                    )
+                            else:
+                                click.echo("✗ No valid WPAD configuration found")
+                                location_cfg["proxy_url"] = click.prompt(
+                                    "Enter Auto Proxy Configuration URL",
+                                    default="",
+                                    show_default=False,
+                                )
+                    except Exception as e:
+                        click.echo(f"✗ Failed to fetch WPAD: {e}")
                         location_cfg["proxy_url"] = click.prompt(
                             "Enter Auto Proxy Configuration URL",
                             default="",
@@ -758,12 +773,104 @@ def configure(location_name):
             location_cfg["proxy_url"] = f"socks://{proxy_host}:{proxy_port}"
         else:
             location_cfg["proxy_url"] = ""
-    else:
-        location_cfg["proxy_url"] = click.prompt(
-            "Enter proxy configuration (PAC URL, http://host:port, socks://host:port, or press Enter for none)",
-            default=location_cfg.get("proxy_url", ""),
-            show_default=False,
-        )
+    # If already set and not just from detection, prompt to change
+    elif not just_set_from_detection:
+        current_proxy = location_cfg.get("proxy_url", "")
+        click.echo(f"Current proxy configuration: {current_proxy}")
+        if ask_yes_no("Change proxy configuration?", "n"):
+            # Show full choice menu for change
+            click.echo("\nProxy configuration options:")
+            click.echo("1. Auto-configuration URL (PAC/WPAD file)")
+            click.echo("2. Manual HTTP/HTTPS proxy")
+            click.echo("3. Manual SOCKS proxy")
+            click.echo("4. No proxy (clear current)")
+
+            proxy_choice = click.prompt(
+                "Choose proxy type",
+                type=click.Choice(["1", "2", "3", "4"]),
+                default="4",
+            )
+
+            if proxy_choice == "1":
+                click.echo("\nCommon PAC/WPAD URLs:")
+                click.echo("  • http://wpad/wpad.dat")
+                click.echo("  • http://proxy.company.com/proxy.pac")
+                click.echo("  • http://example.com/wpad.dat")
+
+                wpad_auto = ask_yes_no(
+                    "\nTry to auto-detect WPAD URL (http://wpad/wpad.dat)?", "n"
+                )
+                if wpad_auto:
+                    click.echo(
+                        "\n⚠️  WARNING: WPAD auto-discovery can be a security risk on untrusted networks."
+                    )
+                    click.echo(
+                        "   Malicious networks could intercept your traffic via a rogue WPAD server."
+                    )
+                    if not ask_yes_no("Continue with WPAD auto-detection?", "n"):
+                        location_cfg["proxy_url"] = click.prompt(
+                            "Enter Auto Proxy Configuration URL",
+                            default="",
+                            show_default=False,
+                        )
+                    else:
+                        click.echo("Checking for WPAD auto-configuration...")
+                        wpad_url = "http://wpad/wpad.dat"
+                        # Test if WPAD URL is accessible
+                        try:
+                            import urllib.request
+
+                            req = urllib.request.Request(wpad_url)
+                            with urllib.request.urlopen(req, timeout=5) as response:
+                                wpad_content = response.read().decode("utf-8")
+                                if "function FindProxyForURL" in wpad_content:
+                                    click.echo(
+                                        f"✓ Found WPAD configuration at {wpad_url}"
+                                    )
+                                    if ask_yes_no(f"Use {wpad_url}?", "y"):
+                                        location_cfg["proxy_url"] = wpad_url
+                                    else:
+                                        location_cfg["proxy_url"] = click.prompt(
+                                            "Enter Auto Proxy Configuration URL",
+                                            default="",
+                                            show_default=False,
+                                        )
+                                else:
+                                    click.echo("✗ No valid WPAD configuration found")
+                                    location_cfg["proxy_url"] = click.prompt(
+                                        "Enter Auto Proxy Configuration URL",
+                                        default="",
+                                        show_default=False,
+                                    )
+                        except Exception as e:
+                            click.echo(f"✗ Failed to fetch WPAD: {e}")
+                            location_cfg["proxy_url"] = click.prompt(
+                                "Enter Auto Proxy Configuration URL",
+                                default="",
+                                show_default=False,
+                            )
+                else:
+                    location_cfg["proxy_url"] = click.prompt(
+                        "Enter Auto Proxy Configuration URL",
+                        default="",
+                        show_default=False,
+                    )
+            elif proxy_choice == "2":
+                proxy_host = click.prompt("Enter HTTP proxy hostname or IP")
+                proxy_port = click.prompt(
+                    "Enter HTTP proxy port", type=int, default=config.DEFAULT_PROXY_PORT
+                )
+                location_cfg["proxy_url"] = f"http://{proxy_host}:{proxy_port}"
+            elif proxy_choice == "3":
+                proxy_host = click.prompt("Enter SOCKS proxy hostname or IP")
+                proxy_port = click.prompt(
+                    "Enter SOCKS proxy port",
+                    type=int,
+                    default=config.DEFAULT_SOCKS_PORT,
+                )
+                location_cfg["proxy_url"] = f"socks://{proxy_host}:{proxy_port}"
+            else:
+                location_cfg["proxy_url"] = ""
 
     # --- Configure Printer ---
     click.echo(click.style("\n--- Default Printer ---", bold=True))

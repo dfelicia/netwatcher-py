@@ -8,6 +8,7 @@ DNS servers, search domains, proxies, printers, and NTP servers.
 import logging
 import urllib.parse
 from pathlib import Path
+import socket
 
 from .. import config
 from ..utils import run_command
@@ -67,6 +68,18 @@ def set_proxy(service_name, url=None):
     if not url:
         logging.info(f"Disabling all proxies for '{service_name}'")
         _disable_all_proxies(service_name)
+        run_command(
+            [
+                "sudo",
+                "/usr/sbin/networksetup",
+                "-setproxybypassdomains",
+                service_name,
+                "Empty",
+            ]
+        )
+        logging.info(
+            f"Disabled all proxies and cleared bypass domains for '{service_name}'"
+        )
         return
 
     logging.info(f"Setting proxy for '{service_name}' to {url}")
@@ -75,6 +88,24 @@ def set_proxy(service_name, url=None):
     cmd = _build_proxy_command(service_name, url)
     if cmd:
         run_command(cmd)
+
+    # Set standard bypass for local/intranet traffic
+    bypass_domains = [
+        "*.local",
+        "169.254/16",
+        "localhost",
+        "127.0.0.1",
+        socket.gethostname(),
+    ]
+    logging.debug(f"Setting bypass domains: {bypass_domains}")
+    bypass_cmd = [
+        "sudo",
+        "/usr/sbin/networksetup",
+        "-setproxybypassdomains",
+        service_name,
+    ] + bypass_domains
+    run_command(bypass_cmd)
+    logging.info(f"Set bypass domains for local/intranet traffic on '{service_name}'")
 
 
 def _disable_all_proxies(service_name):
@@ -88,6 +119,7 @@ def _disable_all_proxies(service_name):
 
     for proxy_type, state in proxy_types:
         cmd = ["sudo", "/usr/sbin/networksetup", proxy_type, service_name, state]
+        logging.debug(f"Disabling {proxy_type} for '{service_name}'")
         run_command(cmd)
 
 
@@ -153,6 +185,7 @@ def _build_proxy_command(service_name, url):
     except Exception as e:
         logging.debug(f"Proxy URL parsing failed for {url}: {e}")
         # Try as PAC/WPAD URL
+        logging.debug("Set proxy as auto-configuration URL")
         return ["sudo", "/usr/sbin/networksetup", "-setautoproxyurl", service_name, url]
 
 

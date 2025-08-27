@@ -21,6 +21,14 @@ from SystemConfiguration import (
 )
 
 from . import actions, config
+from .location.settings import create_vpn_resolver_files, remove_vpn_resolver_files
+from .network import (
+    get_default_route_interface,
+    get_current_dns_servers,
+    get_all_active_services,
+)
+from .network.configuration import set_proxy
+from .utils.commands import run_command
 
 
 def setup_logging(debug):
@@ -70,6 +78,8 @@ class NetWatcherApp(rumps.App):
         self.is_evaluating = False  # Flag to prevent concurrent evaluations
         self.runloop = None
         self.store = None
+        self.prev_vpn_active = False
+        self.created_resolver_files = []
 
         # Set up logging right away
         # Check if config has debug enabled
@@ -316,6 +326,33 @@ class NetWatcherApp(rumps.App):
             # Update connection info and VPN status for the menu (fetch silently)
             connection_info = actions.get_connection_details(silent=True)
             # Use VPN details from the evaluation (no need to fetch again)
+
+            # Update VPN resolver files if VPN state changed
+            if vpn_active != self.prev_vpn_active:
+                if vpn_active and location_name in self.config.get("locations", {}):
+                    location_config = self.config["locations"][location_name]
+                    search_domains = location_config.get("dns_search_domains", [])
+                    if search_domains:
+                        vpn_interface = get_default_route_interface()
+                        vpn_dns = (
+                            get_current_dns_servers(vpn_interface)
+                            if vpn_interface and vpn_interface.startswith("utun")
+                            else []
+                        )
+                        self.created_resolver_files = create_vpn_resolver_files(
+                            search_domains, vpn_dns
+                        )
+                else:
+                    remove_vpn_resolver_files(self.created_resolver_files)
+                    run_command(["sudo", "dscacheutil", "-flushcache"])
+                    self.created_resolver_files = []
+
+                    # Disable proxies on all active services on disconnect
+                    active_services = get_all_active_services()
+                    for serv_name, iface in active_services:
+                        set_proxy(serv_name, None)
+
+                self.prev_vpn_active = vpn_active
 
             # Update the menu bar title and menu items
             self.update_menu(

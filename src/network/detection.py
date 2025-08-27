@@ -19,24 +19,13 @@ from .interfaces import get_default_route_interface
 
 
 def get_dns_output():
-    """Get DNS configuration using hybrid approach: native APIs with scutil fallback."""
-    # Try native method first
-    native_result = get_dns_info_native()
-    if (
-        native_result
-        and "search domain" in native_result
-        and "nameserver" in native_result
-    ):
-        logging.debug("Using native DNS info")
-        return native_result
-
-    # Fall back to scutil for complete output
-    logging.debug("Using scutil --dns for complete DNS info")
+    """Get DNS configuration using scutil for complete info including scoped."""
+    logging.debug("Using scutil --dns for DNS info")
     return run_command(["scutil", "--dns"], capture=True)
 
 
 def get_active_resolver_block(interface_name):
-    """Get the DNS resolver block for a specific network interface."""
+    """Get the DNS resolver block for a specific network interface from scoped section."""
     if not interface_name:
         logging.debug("Cannot find resolver block without interface name")
         return None
@@ -46,13 +35,23 @@ def get_active_resolver_block(interface_name):
         logging.debug("No DNS output available")
         return None
 
-    # Find the resolver block for this interface
-    for block in dns_output.strip().split("resolver #"):
+    # Find the scoped DNS configuration section
+    scoped_start = dns_output.find("DNS configuration (for scoped queries)")
+    if scoped_start == -1:
+        logging.debug("No scoped DNS configuration found")
+        return None
+
+    scoped_section = dns_output[scoped_start:]
+
+    # Split into resolver blocks
+    blocks = scoped_section.strip().split("resolver #")
+
+    for block in blocks:
         if block.strip() and f"({interface_name})" in block:
-            logging.debug(f"Found resolver block for interface {interface_name}")
+            logging.debug(f"Found scoped resolver block for {interface_name}")
             return block
 
-    logging.debug(f"No resolver found for interface {interface_name}")
+    logging.debug(f"No scoped resolver found for {interface_name}")
     return None
 
 
@@ -67,9 +66,7 @@ def get_current_dns_servers(interface_name):
 
     # Extract DNS servers from resolver block
     servers = []
-    for match in re.finditer(
-        r"nameserver\[\s*\d+\s*\]\s*:\s*([\d\.]+)", resolver_block
-    ):
+    for match in re.finditer(r"nameserver\[\d+\]\s*:\s*([\d\.]+)", resolver_block):
         servers.append(match.group(1))
 
     if servers:
@@ -91,7 +88,7 @@ def get_current_search_domains(interface_name):
 
     # Extract search domains from resolver block
     domains = []
-    for match in re.finditer(r"search domain\[\s*\d+\s*\]\s*:\s*(\S+)", resolver_block):
+    for match in re.finditer(r"search domain\[\d+\]\s*:\s*(\S+)", resolver_block):
         domains.append(match.group(1))
 
     if domains:
@@ -124,7 +121,7 @@ def get_current_ssid():
 
 def is_vpn_active():
     """Check if VPN is active by examining the default route interface."""
-    logging.info("Checking for active VPN connection...")
+    logging.info("Checking for active VPN connection")
 
     try:
         default_interface = get_default_route_interface()

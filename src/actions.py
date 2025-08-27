@@ -54,7 +54,6 @@ from .network import (
 
 from .external import (
     get_connection_details,
-    get_proxy_from_wpad,
     get_vpn_details,
 )
 
@@ -80,7 +79,6 @@ __all__ = [
     "set_ntp_server",
     # External services
     "get_connection_details",
-    "get_proxy_from_wpad",
     "get_vpn_details",
     # Utilities
     "run_command",

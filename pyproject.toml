@@ -11,7 +11,7 @@ dependencies = [
     "rumps",
     "toml",
     "click",
-    "pacparser",
+    "netifaces",
 ]
 
 [project.scripts]

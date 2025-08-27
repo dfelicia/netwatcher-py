@@ -16,7 +16,7 @@ NetWatcher is built with Python and uses native macOS frameworks for reliable, e
 
 - **Real-time network monitoring** using macOS SystemConfiguration framework
 - **Menu bar integration** with current location and connection status display
-- **Automatic network configuration** including multi-interface support:
+- **Automatic network configuration** including multi-interface support and dynamic /etc/resolver for VPN search domains:
   - DNS servers and search domains
   - Proxy settings (PAC/WPAD files, HTTP/HTTPS/SOCKS proxies) with advanced parsing via pacparser for precise detection
   - Default printer selection
@@ -77,7 +77,7 @@ NetWatcher requires elevated privileges to modify system network settings. Confi
 3. Add the following lines (replace `your_username` with your actual macOS username):
    ```
    # Allow NetWatcher to run required network commands without a password
-   Cmnd_Alias NETWATCHER_CMDS = /usr/sbin/networksetup, /usr/sbin/systemsetup, /usr/sbin/lpadmin, /usr/bin/sntp
+   Cmnd_Alias NETWATCHER_CMDS = /usr/sbin/networksetup, /usr/sbin/systemsetup, /usr/sbin/lpadmin, /usr/bin/sntp, /bin/mkdir /etc/resolver, /bin/rm /etc/resolver/*, /usr/bin/tee /etc/resolver/*, /usr/bin/dscacheutil -flushcache
    your_username ALL=(ALL) NOPASSWD: NETWATCHER_CMDS
    ```
 

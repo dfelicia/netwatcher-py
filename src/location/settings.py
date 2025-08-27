@@ -19,8 +19,11 @@ from ..network import (
     set_default_printer,
     set_ntp_server,
     get_all_active_services,
+    get_default_route_interface,
 )
-from ..external import get_proxy_from_wpad, get_vpn_details
+from ..external import get_vpn_details
+from ..utils import run_command
+from pathlib import Path
 from .matching import find_matching_location
 
 
@@ -65,13 +68,10 @@ def apply_location_settings(
         set_dns_servers(service_name, dns_servers)
 
     # Determine proxy
-    if interface_name.startswith("utun"):
-        logging.debug(f"Skipping proxy for VPN interface {interface_name}")
+    if proxy_result:
+        set_proxy(service_name, proxy_result)
     else:
-        if proxy_result:
-            set_proxy(service_name, proxy_result)
-        else:
-            set_proxy(service_name)  # disable
+        set_proxy(service_name)  # disable
 
 
 def check_and_apply_location_settings(cfg):
@@ -122,20 +122,14 @@ def check_and_apply_location_settings(cfg):
         cfg, current_ssid, current_search_domains, vpn_active
     )
 
+    available_locations = list(cfg.get("locations", {}).keys())
+    logging.info(f"Available locations: {available_locations}")
+    logging.info(f"Checking if '{location_name}' in available locations")
+
     if location_name in cfg.get("locations", {}):
         logging.info(f"Applying settings for location: {location_name}")
         location_config = cfg["locations"][location_name]
         proxy_url = location_config.get("proxy_url", "")
-        proxy_result = None
-        if proxy_url:
-            if "wpad.dat" in proxy_url.lower():
-                proxy_res = get_proxy_from_wpad(proxy_url)
-                if proxy_res == "DIRECT" or proxy_res is None:
-                    proxy_result = None
-                else:
-                    proxy_result = f"http://{proxy_res}"
-            else:
-                proxy_result = proxy_url
 
         active_services = get_all_active_services()
         for serv_name, iface in active_services:
@@ -147,7 +141,7 @@ def check_and_apply_location_settings(cfg):
                 iface,
                 vpn_active,
                 skip_dns=skip_dns,
-                proxy_result=proxy_result,
+                proxy_result=proxy_url,
             )
 
         # System-wide settings
@@ -160,6 +154,57 @@ def check_and_apply_location_settings(cfg):
         return "Unknown", vpn_active, vpn_details
 
     return location_name, vpn_active, vpn_details
+
+
+def create_vpn_resolver_files(search_domains, vpn_dns_servers=None):
+    """Create resolver files for each search domain when VPN is active."""
+    resolver_dir = Path("/etc/resolver")
+    created_files = []
+
+    try:
+        # Ensure directory exists (requires sudo mkdir /etc/resolver)
+        run_command(["sudo", "mkdir", "-p", str(resolver_dir)])
+
+        primary_interface = get_default_route_interface()
+        current_domains = (
+            get_current_search_domains(primary_interface) if primary_interface else []
+        )
+
+        for domain in search_domains:
+            if domain in current_domains:
+                logging.debug(
+                    f"Skipping duplicate domain {domain} already in resolv.conf"
+                )
+                continue
+
+            file_path = resolver_dir / domain
+            content = f"search {domain}\n"
+            if vpn_dns_servers:
+                content += (
+                    "\n".join(f"nameserver {dns}" for dns in vpn_dns_servers) + "\n"
+                )
+                content += "search_order 1\n"  # Prioritize this resolver
+
+            # Write using tee to avoid redirection issues with sudo
+            run_command(["sudo", "tee", str(file_path)], input=content)
+            created_files.append(file_path)
+            logging.info(f"Created resolver file for {domain}")
+
+        return created_files
+
+    except Exception as e:
+        logging.error(f"Failed to create resolver files: {e}")
+        return []
+
+
+def remove_vpn_resolver_files(created_files):
+    """Remove previously created resolver files when VPN disconnects."""
+    for file_path in created_files:
+        try:
+            run_command(["sudo", "rm", "-f", str(file_path)])
+            logging.info(f"Removed resolver file: {file_path}")
+        except Exception as e:
+            logging.error(f"Failed to remove {file_path}: {e}")
 
 
 def _get_current_network_info():

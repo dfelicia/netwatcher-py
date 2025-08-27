@@ -21,7 +21,6 @@ def find_matching_location(
         vpn_active = is_vpn_active()
 
     logging.info(f"Location matching: VPN={vpn_active}, SSID={current_ssid}")
-    logging.info(f"Search domains: {len(current_search_domains)} found")
 
     locations = config_data.get("locations", {})
 
@@ -37,7 +36,13 @@ def find_matching_location(
         if match:
             return match
 
-    # Priority 3: Corporate vs Home heuristics
+    # Priority 3: Search domain matching (non-VPN)
+    if not vpn_active and current_search_domains:
+        match = _find_domain_location(locations, current_search_domains)
+        if match:
+            return match
+
+    # Priority 4: Corporate vs Home heuristics
     if vpn_active:
         match = _find_corporate_location(locations)
         if match:
@@ -77,6 +82,19 @@ def _find_corporate_location(locations):
         ntp_server = settings.get("ntp_server", "")
         if ntp_server and ntp_server != "time.apple.com":
             logging.info(f"VPN active - selected '{name}' (has corporate NTP)")
+            return name
+    return None
+
+
+def _find_domain_location(locations, current_domains):
+    """Find location matching current search domains using set intersection."""
+    current_set = set(current_domains)
+    for name, settings in locations.items():
+        if name == "default":
+            continue
+        config_domains = set(settings.get("dns_search_domains", []))
+        if config_domains.intersection(current_set):
+            logging.info(f"Domain match - selected '{name}'")
             return name
     return None
 

@@ -104,6 +104,9 @@ def load_config():
                     ]
                 del config["locations"][loc_name]["domains"]
 
+    import logging
+
+    logging.info(f"Loaded locations: {list(config.get('locations', {}).keys())}")
     return config
 
 
