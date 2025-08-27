@@ -8,12 +8,11 @@ This module handles interactions with external services including:
 """
 
 from .ipinfo import get_connection_details
-from .wpad import get_proxy_from_wpad, update_curlrc
+from .wpad import get_proxy_from_wpad
 from .vpn import get_vpn_details
 
 __all__ = [
     "get_connection_details",
     "get_proxy_from_wpad",
-    "update_curlrc",
     "get_vpn_details",
 ]

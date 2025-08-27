@@ -55,7 +55,6 @@ from .network import (
 from .external import (
     get_connection_details,
     get_proxy_from_wpad,
-    update_curlrc,
     get_vpn_details,
 )
 
@@ -82,7 +81,6 @@ __all__ = [
     # External services
     "get_connection_details",
     "get_proxy_from_wpad",
-    "update_curlrc",
     "get_vpn_details",
     # Utilities
     "run_command",

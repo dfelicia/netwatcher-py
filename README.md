@@ -21,7 +21,6 @@ NetWatcher is built with Python and uses native macOS frameworks for reliable, e
   - Proxy settings (PAC/WPAD files, HTTP/HTTPS/SOCKS proxies) with advanced parsing via pacparser for precise detection
   - Default printer selection
   - Network Time Protocol (NTP) server configuration
-- **Command-line tool integration** with `~/.curlrc` proxy configuration
 - **VPN detection and status display** (configurable for various VPN clients)
 - **One-click testing** from the menu bar with log file integration
 - **Comprehensive logging** for debugging and monitoring
@@ -216,7 +215,7 @@ NetWatcher is organized into focused modules:
 
 #### **`src/external/`** - External Service Integrations
 - **`ipinfo.py`**: Connection details from ip-api.com
-- **`wpad.py`**: WPAD proxy configuration and curlrc management
+- **`wpad.py`**: WPAD proxy configuration
 - **`vpn.py`**: VPN client integrations (Cisco, etc.)
 
 #### **`src/location/`** - Location Logic

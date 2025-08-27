@@ -19,12 +19,12 @@ from ..network import (
     set_default_printer,
     set_ntp_server,
 )
-from ..external import get_proxy_from_wpad, update_curlrc, get_vpn_details
+from ..external import get_proxy_from_wpad, get_vpn_details
 from .matching import find_matching_location
 
 
 def apply_location_settings(
-    location_name, location_config, service_name, interface_name, vpn_active=None
+    location_config, service_name, interface_name, vpn_active=None
 ):
     """Applies all settings for a given location."""
     # Get domains from two sources:
@@ -79,17 +79,6 @@ def apply_location_settings(
     else:
         # No proxy URL, so disable proxy settings
         set_proxy(service_name)
-
-    # Update curlrc with the specific proxy server address, or remove it
-    # Only pass a proxy to curlrc if we have a real proxy server, not None or empty strings
-    if proxy_to_use and proxy_to_use.strip() and proxy_to_use != "(null)":
-        logging.info(f"Updating curlrc with proxy server: '{proxy_to_use}'")
-        update_curlrc(proxy_to_use)
-    else:
-        logging.debug(
-            f"No proxy configured (value: '{proxy_to_use}'), removing proxy settings from curlrc"
-        )
-        update_curlrc(None)  # This will remove proxy settings
 
     if "printer" in location_config and location_config["printer"]:
         set_default_printer(location_config["printer"])
@@ -150,7 +139,6 @@ def check_and_apply_location_settings(cfg):
     if location_name in cfg.get("locations", {}):
         logging.info(f"Applying settings for location: {location_name}")
         apply_location_settings(
-            location_name,
             cfg["locations"][location_name],
             service_name,
             interface,
