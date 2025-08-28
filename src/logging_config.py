@@ -55,7 +55,7 @@ class NetWatcherLogger:
 
         # Log the initialization
         logger = logging.getLogger(__name__)
-        logger.info(
+        logger.debug(
             f"NetWatcher logging initialized (debug={'on' if debug else 'off'})"
         )
 
