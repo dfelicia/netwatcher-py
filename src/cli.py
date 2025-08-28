@@ -3,7 +3,6 @@ import importlib.resources
 import os
 import platform
 import re
-import shutil
 import signal
 import subprocess
 import sys
@@ -248,8 +247,8 @@ def get_available_ssids():
             )
             manager.requestWhenInUseAuthorization()
             # Poll for a few seconds for the user to respond to the dialog
-            for _ in range(10):
-                time.sleep(1)
+            for _ in range(config.LOCATION_AUTH_POLL_COUNT):
+                time.sleep(config.LOCATION_AUTH_POLL_INTERVAL)
                 status = manager.authorizationStatus()
                 if status != kCLAuthorizationStatusNotDetermined:
                     break
@@ -283,12 +282,14 @@ def get_available_ssids():
         click.echo("Scanning for Wi-Fi networks... (this may take a moment)")
         # The scan can sometimes fail if the resource is busy, so we retry.
         networks = None
-        for i in range(5):  # Retry up to 5 times
+        for i in range(config.WIFI_SCAN_RETRY_COUNT):
             networks, error = interface.scanForNetworksWithName_error_(None, None)
             if networks is not None:
                 break
             if error and "Busy" in str(error):
-                time.sleep(2 * (i + 1))  # Exponential backoff
+                time.sleep(
+                    config.WIFI_SCAN_RETRY_DELAY_BASE * (i + 1)
+                )  # Exponential backoff
             else:
                 break  # A non-busy error occurred
 
@@ -1256,6 +1257,8 @@ def uninstall():
                 "\nWould you like to remove these files for a complete cleanup?",
                 default="n",
             ):
+                import shutil
+
                 try:
                     removed_items = []
                     if config_dir.exists():

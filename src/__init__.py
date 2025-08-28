@@ -11,6 +11,6 @@ __email__ = "don@effinthing.com"
 __license__ = "MIT"
 
 # Make key components available at package level
-from . import actions, cli, config, watcher
+from . import actions, config, watcher
 
-__all__ = ["actions", "cli", "config", "watcher"]
+__all__ = ["actions", "config", "watcher"]

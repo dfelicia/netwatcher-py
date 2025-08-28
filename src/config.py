@@ -32,6 +32,12 @@ IPINFO_TIMEOUT = 10  # seconds
 DNS_RESOLUTION_TIMEOUT = 5  # seconds
 IPINFO_API_URL = "http://ip-api.com/json"  # Primary IP info service
 
+# --- Network Operation Constants ---
+WIFI_SCAN_RETRY_COUNT = 5  # Number of times to retry Wi-Fi scanning
+LOCATION_AUTH_POLL_COUNT = 10  # Number of times to poll for location authorization
+LOCATION_AUTH_POLL_INTERVAL = 1  # Seconds between location authorization polls
+WIFI_SCAN_RETRY_DELAY_BASE = 2  # Base delay for exponential backoff in Wi-Fi scanning
+
 # --- Default Port Numbers ---
 DEFAULT_HTTP_PORT = 80
 DEFAULT_HTTPS_PORT = 443
