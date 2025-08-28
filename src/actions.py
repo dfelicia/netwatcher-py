@@ -27,9 +27,9 @@ Example usage:
     actions.apply_location_settings(location, config_data[location])
 
 For new code, consider importing directly from specific modules:
-    from src.network import get_current_ssid, is_vpn_active
-    from src.external import get_connection_details
-    from src.location import find_matching_location
+    from .network import get_current_ssid, is_vpn_active
+    from .external import get_connection_details
+    from .location import find_matching_location
 """
 
 # Re-export the main functions to maintain compatibility

@@ -1,5 +1,4 @@
 import importlib.resources
-import logging
 import os
 import subprocess
 from pathlib import Path
@@ -28,35 +27,11 @@ from .network import (
     get_all_active_services,
 )
 from .network.configuration import set_proxy
-from .utils.commands import run_command
+from .logging_config import setup_logging, get_logger
 
 
-def setup_logging(debug):
-    """Sets up logging for the application."""
-    # Prevents handlers from being added multiple times
-    if logging.getLogger().hasHandlers():
-        logging.getLogger().handlers.clear()
-
-    # Use centralized log configuration
-    config.LOG_DIR.mkdir(parents=True, exist_ok=True)
-    log_file = config.LOG_FILE
-
-    # Create standard formatter without milliseconds
-    formatter = logging.Formatter(config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT)
-
-    # Configure root logger
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG if debug else logging.INFO)
-
-    # Always use both file and console handlers
-    # For services, stdout/stderr are redirected to /dev/null so no duplication
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setFormatter(formatter)
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
+# Get module logger
+logger = get_logger(__name__)
 
 
 class NetWatcherApp(rumps.App):
@@ -86,6 +61,9 @@ class NetWatcherApp(rumps.App):
         debug_enabled = self.config.get("settings", {}).get("debug", False)
         setup_logging(debug=debug_enabled)
 
+        # Get logger for this class
+        self.logger = get_logger(f"{__name__}.{self.__class__.__name__}")
+
         # Set the icon
         try:
             with importlib.resources.path("src", "icon_menu.png") as icon_path:
@@ -100,7 +78,7 @@ class NetWatcherApp(rumps.App):
                 self.template = True
 
         except Exception as e:
-            logging.warning(f"Failed to set application icon: {e}")
+            self.logger.warning(f"Failed to set application icon: {e}")
             self.icon = None  # Fallback to no icon
 
         # Build the initial menu
@@ -133,13 +111,13 @@ class NetWatcherApp(rumps.App):
             self.runloop = CFRunLoopGetCurrent()
             source = SCDynamicStoreCreateRunLoopSource(None, self.store, 0)
             CFRunLoopAddSource(self.runloop, source, kCFRunLoopDefaultMode)
-            logging.info("SystemConfiguration watcher is set up")
+            logger.info("SystemConfiguration watcher is set up")
 
             # Trigger initial evaluation after a short delay
             self.debounce_timer = Timer(1.0, self.evaluate_network_state)
             self.debounce_timer.start()
         else:
-            logging.error("Failed to create SCDynamicStore")
+            logger.error("Failed to create SCDynamicStore")
 
     def update_menu(self, location_name, connection_info=None, vpn_status=None):
         """Updates the menu bar title and menu items."""
@@ -149,7 +127,7 @@ class NetWatcherApp(rumps.App):
         try:
             self.menu.clear()
         except Exception as e:
-            logging.error(f"Menu clear error: {e}")
+            logger.error(f"Menu clear error: {e}")
 
         # Build menu from scratch to avoid menu item conflicts
         menu_items = [
@@ -207,11 +185,11 @@ class NetWatcherApp(rumps.App):
         try:
             self.menu = menu_items
         except Exception as e:
-            logging.error(f"Menu assignment error: {e}")
+            logger.error(f"Menu assignment error: {e}")
 
     def run_test(self, _):
         """Callback to manually run a configuration test."""
-        logging.info("Manual test triggered from menu bar.")
+        logger.info("Manual test triggered from menu bar.")
 
         # Run the evaluation
         location_name, vpn_active, vpn_details = (
@@ -245,25 +223,25 @@ class NetWatcherApp(rumps.App):
 
     def notification_center(self, info):
         """Handle notification clicks."""
-        logging.info(f"Notification clicked with info: {info}")
+        logger.info(f"Notification clicked with info: {info}")
 
         # Check if this is our test notification
         if isinstance(info, dict) and info.get("data") == "open_log":
-            logging.info("Opening log file from dict data")
+            logger.info("Opening log file from dict data")
             self.open_log_file()
         elif hasattr(info, "userInfo") and info.userInfo().get("data") == "open_log":
-            logging.info("Opening log file from userInfo")
+            logger.info("Opening log file from userInfo")
             self.open_log_file()
         elif hasattr(info, "data") and info.data == "open_log":
-            logging.info("Opening log file from info.data")
+            logger.info("Opening log file from info.data")
             self.open_log_file()
         else:
             # For any test notification, open the log
             if "NetWatcher Test" in str(info):
-                logging.info("Opening log file from NetWatcher Test match")
+                logger.info("Opening log file from NetWatcher Test match")
                 self.open_log_file()
             else:
-                logging.info(
+                logger.info(
                     f"No match found for notification info: {type(info)} - {dir(info)}"
                 )
 
@@ -273,17 +251,17 @@ class NetWatcherApp(rumps.App):
         try:
             # Use 'open' command to open the log file with the default application
             subprocess.run(["open", str(log_file)], check=True)
-            logging.info(f"Opened log file: {log_file}")
+            logger.info(f"Opened log file: {log_file}")
         except subprocess.CalledProcessError as e:
-            logging.error(f"Failed to open log file: {e}")
+            logger.error(f"Failed to open log file: {e}")
         except Exception as e:
-            logging.error(f"Unexpected error opening log file: {e}")
+            logger.error(f"Unexpected error opening log file: {e}")
 
     def sc_callback(self, *args):
         """SystemConfiguration callback for network changes."""
         # If we're already evaluating, ignore additional callbacks
         if self.is_evaluating:
-            logging.debug("Network change detected during evaluation, ignoring")
+            logger.debug("Network change detected during evaluation, ignoring")
             return
 
         # Cancel any existing debounce timer
@@ -293,7 +271,7 @@ class NetWatcherApp(rumps.App):
 
         # Only log the debounce message if there wasn't already a timer running
         if not timer_was_active:
-            logging.info("Network change detected, evaluating after debounce")
+            logger.info("Network change detected, evaluating after debounce")
 
         # Simple approach like bash script: just wait for things to settle, then evaluate
         debounce_seconds = self.config.get("settings", {}).get("debounce_seconds", 5)
@@ -306,20 +284,23 @@ class NetWatcherApp(rumps.App):
         """The core logic to check network and apply settings."""
         # Set the evaluation flag to prevent concurrent evaluations
         if self.is_evaluating:
-            logging.debug("Evaluation already in progress, skipping")
+            logger.debug("Evaluation already in progress, skipping")
             return
 
         self.is_evaluating = True
 
         try:
-            logging.info("Evaluating network state after debounce")
+            logger.info("Evaluating network state after debounce")
 
             # Reload config in case it changed
             self.config = config.load_config()
 
             # First check without applying or fetching VPN details
             new_location, vpn_active, _ = actions.check_and_apply_location_settings(
-                self.config, apply=False, fetch_details=False, log_level=logging.DEBUG
+                self.config,
+                apply=False,
+                fetch_details=False,
+                log_level=10,  # DEBUG level
             )
 
             location_changed = new_location != self.current_location
@@ -351,7 +332,7 @@ class NetWatcherApp(rumps.App):
                             )
                     else:
                         remove_vpn_resolver_files(self.created_resolver_files)
-                        run_command(["sudo", "dscacheutil", "-flushcache"])
+                        actions.run_command(["sudo", "dscacheutil", "-flushcache"])
                         self.created_resolver_files = []
 
                         # Disable proxies on all active services on disconnect
@@ -369,7 +350,7 @@ class NetWatcherApp(rumps.App):
                     vpn_status=vpn_details,
                 )
             else:
-                logging.debug(
+                logger.debug(
                     f"No change in location ({new_location}) or VPN state, skipping apply"
                 )
 
@@ -379,18 +360,18 @@ class NetWatcherApp(rumps.App):
 
     def quit_app(self, _):
         """Gracefully stop the launchd service and quit the app."""
-        logging.info("Quit button clicked. Unloading launchd service.")
+        logger.info("Quit button clicked. Unloading launchd service.")
         try:
             plist_path = config.LAUNCH_AGENT_PLIST_PATH
             if plist_path.exists():
                 # Use run_command from actions.py for consistency
                 actions.run_command(["launchctl", "unload", "-w", str(plist_path)])
             else:
-                logging.warning(
+                logger.warning(
                     f"Launch agent plist not found at {plist_path}, cannot unload."
                 )
         except Exception as e:
-            logging.error(f"Failed to unload launchd service: {e}")
+            logger.error(f"Failed to unload launchd service: {e}")
 
         rumps.quit_application()
 
@@ -411,9 +392,9 @@ def main(debug=False):
         shared_app = AppKit.NSApplication.sharedApplication()
         # Set activation policy to accessory (background only, no dock icon)
         shared_app.setActivationPolicy_(AppKit.NSApplicationActivationPolicyAccessory)
-        logging.debug("Set application activation policy to hide from dock")
+        logger.debug("Set application activation policy to hide from dock")
     except Exception as e:
-        logging.warning(f"Could not hide from dock: {e}")
+        logger.warning(f"Could not hide from dock: {e}")
 
     app.setup_watcher()
     # Initial state will be evaluated by SystemConfiguration callback

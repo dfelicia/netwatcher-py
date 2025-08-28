@@ -7,7 +7,6 @@ It serves as the central location for all native API calls to avoid duplication.
 """
 
 import fcntl
-import logging
 import re
 import socket
 import struct
@@ -17,6 +16,11 @@ try:
     import SystemConfiguration
 except ImportError:
     SystemConfiguration = None
+
+from ..logging_config import get_logger
+
+# Get module logger
+logger = get_logger(__name__)
 
 try:
     import netifaces
@@ -49,7 +53,7 @@ def get_dns_info_native():
         dns_keys = SystemConfiguration.SCDynamicStoreCopyKeyList(store, dns_pattern)
 
         if not dns_keys:
-            logging.debug("No DNS service keys found, checking global DNS")
+            logger.debug("No DNS service keys found, checking global DNS")
             return _get_global_dns_info(store)
 
         # Process each DNS service
@@ -66,7 +70,7 @@ def get_dns_info_native():
         return "\n".join(result) if result else None
 
     except Exception as e:
-        logging.debug(f"Native DNS info failed: {e}")
+        logger.debug(f"Native DNS info failed: {e}")
         return None
 
 
@@ -96,7 +100,7 @@ def _get_global_dns_info(store):
         return "\n".join(result)
 
     except Exception as e:
-        logging.debug(f"Failed to get global DNS info: {e}")
+        logger.debug(f"Failed to get global DNS info: {e}")
         return None
 
 
@@ -140,13 +144,13 @@ def get_service_name_native(service_id):
         if service_dict:
             user_defined_name = service_dict.get("UserDefinedName")
             if user_defined_name:
-                logging.debug(f"Native API found service name: {user_defined_name}")
+                logger.debug(f"Native API found service name: {user_defined_name}")
                 return user_defined_name
 
         return None
 
     except Exception as e:
-        logging.debug(f"Native service name lookup failed: {e}")
+        logger.debug(f"Native service name lookup failed: {e}")
         return None
 
 
@@ -166,19 +170,19 @@ def get_default_route_interface_native():
         ipv4_dict = SystemConfiguration.SCDynamicStoreCopyValue(store, ipv4_key)
 
         if not ipv4_dict:
-            logging.debug("No global IPv4 configuration found")
+            logger.debug("No global IPv4 configuration found")
             return None
 
         # Get the primary interface
         primary_interface = ipv4_dict.get("PrimaryInterface")
         if primary_interface:
-            logging.debug(f"Native API found primary interface: {primary_interface}")
+            logger.debug(f"Native API found primary interface: {primary_interface}")
             return primary_interface
 
         return None
 
     except Exception as e:
-        logging.debug(f"Native default route interface lookup failed: {e}")
+        logger.debug(f"Native default route interface lookup failed: {e}")
         return None
 
 
@@ -199,18 +203,18 @@ def get_interface_ip_native(interface):
                 addresses = netifaces.ifaddresses(interface)
                 if netifaces.AF_INET in addresses:
                     ip = addresses[netifaces.AF_INET][0]["addr"]
-                    logging.debug(f"Found IP {ip} for interface {interface}")
+                    logger.debug(f"Found IP {ip} for interface {interface}")
                     return ip
 
-            logging.debug(f"Interface {interface} has no IPv4 address")
+            logger.debug(f"Interface {interface} has no IPv4 address")
             return None
 
         except Exception as e:
-            logging.debug(f"Failed to get IP for interface {interface}: {e}")
+            logger.debug(f"Failed to get IP for interface {interface}: {e}")
             return None
 
     # Fallback: parse ifconfig output when netifaces is not available
-    logging.debug("netifaces not available, using command fallback")
+    logger.debug("netifaces not available, using command fallback")
     try:
         result = subprocess.run(
             ["ifconfig", interface], capture_output=True, text=True, timeout=5
@@ -219,12 +223,12 @@ def get_interface_ip_native(interface):
             match = re.search(r"inet (\d+\.\d+\.\d+\.\d+)", result.stdout)
             if match:
                 ip = match.group(1)
-                logging.debug(f"Found IP {ip} for interface {interface}")
+                logger.debug(f"Found IP {ip} for interface {interface}")
                 return ip
 
-        logging.debug(f"Interface {interface} has no IP address")
+        logger.debug(f"Interface {interface} has no IP address")
         return None
 
     except Exception as e:
-        logging.debug(f"Failed to get IP for interface {interface}: {e}")
+        logger.debug(f"Failed to get IP for interface {interface}: {e}")
         return None

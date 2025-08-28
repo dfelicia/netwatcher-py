@@ -5,7 +5,6 @@ This module provides functions for working with network interfaces,
 services, and low-level network operations.
 """
 
-import logging
 import re
 
 try:
@@ -14,6 +13,7 @@ except ImportError:
     SystemConfiguration = None
 
 from . import VPN_INTERFACE_PREFIX
+from ..logging_config import get_logger
 from ..utils import (
     run_command,
     get_default_route_interface_native,
@@ -21,20 +21,23 @@ from ..utils import (
     get_interface_ip_native,
 )
 
+# Get module logger
+logger = get_logger(__name__)
 
-def get_default_route_interface(log_level=logging.INFO):
+
+def get_default_route_interface(log_level=20):  # INFO level
     """Gets the default route interface using native APIs instead of netstat."""
     try:
         # Try native method first
         native_interface = get_default_route_interface_native()
         if native_interface:
-            logging.log(
+            logger.log(
                 log_level, f"Using native method for default route: {native_interface}"
             )
             return native_interface
 
         # Fall back to netstat if native method fails
-        logging.log(log_level, "Falling back to netstat for default route")
+        logger.log(log_level, "Falling back to netstat for default route")
         netstat_output = run_command(["netstat", "-rn", "-f", "inet"], capture=True)
         if netstat_output:
             for line in netstat_output.split("\n"):
@@ -45,7 +48,7 @@ def get_default_route_interface(log_level=logging.INFO):
                         return interface
         return None
     except Exception as e:
-        logging.log(log_level, f"Error getting default route interface: {e}")
+        logger.log(log_level, f"Error getting default route interface: {e}")
         return None
 
 
@@ -62,7 +65,7 @@ def get_primary_service_id():
             if ipv4_dict:
                 return ipv4_dict.get("PrimaryService")
     except Exception as e:
-        logging.debug(f"Failed to get service ID natively: {e}")
+        logger.debug(f"Failed to get service ID natively: {e}")
     return None
 
 
@@ -84,7 +87,7 @@ def get_primary_service_scutil():
         return interface, service_id
 
     except Exception as e:
-        logging.debug(f"Failed to get primary service via scutil: {e}")
+        logger.debug(f"Failed to get primary service via scutil: {e}")
         return None, None
 
 
@@ -107,7 +110,7 @@ def get_service_display_name(service_id, interface):
             if match:
                 return match.group(1).strip()
     except Exception as e:
-        logging.debug(f"Failed to get service name via scutil: {e}")
+        logger.debug(f"Failed to get service name via scutil: {e}")
 
     # Generate reasonable fallback name
     return generate_service_name(service_id, interface)
@@ -155,7 +158,7 @@ def find_configurable_service():
                 primary_service_id = primary_service_info.get("PrimaryService")
                 primary_interface = primary_service_info.get("PrimaryInterface")
 
-                logging.debug(
+                logger.debug(
                     f"Primary service ID: {primary_service_id}, interface: {primary_interface}"
                 )
 
@@ -180,7 +183,7 @@ def find_configurable_service():
         return find_configurable_service_shell()
 
     except Exception as e:
-        logging.debug(f"Native API approach failed, falling back to shell: {e}")
+        logger.debug(f"Native API approach failed, falling back to shell: {e}")
         return find_configurable_service_shell()
 
 
@@ -192,7 +195,7 @@ def find_configurable_service_shell():
         # Get hardware ports mapping device -> port name
         hw_output = run_command(["networksetup", "-listallhardwareports"], capture=True)
         if not hw_output:
-            logging.error("Failed to get hardware ports")
+            logger.error("Failed to get hardware ports")
             return None
 
         # Build mapping of device -> port name
@@ -228,7 +231,7 @@ def find_configurable_service_shell():
                     # Validate it's a proper IPv4 address
                     if re.match(r"^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$", ip_address):
                         active_ifaces.append((device, port_name))
-                        logging.debug(
+                        logger.debug(
                             f"Found active interface: {device} ({port_name}) with IP {ip_address}"
                         )
             except Exception:
@@ -250,24 +253,24 @@ def find_configurable_service_shell():
             # Prefer those named *Ethernet*
             for device, port_name in wired_ifaces:
                 if "Ethernet" in port_name:
-                    logging.debug(f"Using active Ethernet service: {port_name}")
+                    logger.debug(f"Using active Ethernet service: {port_name}")
                     return port_name
 
             # Then prefer USB.*LAN pattern (e.g., "USB 10/100/1000 LAN")
             for device, port_name in wired_ifaces:
                 if re.match(r"^USB.*LAN$", port_name):
-                    logging.debug(f"Using active USB LAN service: {port_name}")
+                    logger.debug(f"Using active USB LAN service: {port_name}")
                     return port_name
 
             # Fallback to first wired interface
             device, port_name = wired_ifaces[0]
-            logging.info(f"Using first active wired service: {port_name}")
+            logger.info(f"Using first active wired service: {port_name}")
             return port_name
 
         # Fall back to Wi-Fi if no wired interfaces
         wifi_ifaces = [(dev, port) for dev, port in active_ifaces if port == "Wi-Fi"]
         if wifi_ifaces:
-            logging.debug(f"Using active Wi-Fi service: Wi-Fi")
+            logger.debug(f"Using active Wi-Fi service: Wi-Fi")
             return "Wi-Fi"
 
         # Final fallback - check what services are available in networksetup
@@ -284,14 +287,14 @@ def find_configurable_service_shell():
 
             for preferred in ["Wi-Fi", "Ethernet"]:
                 if preferred in services:
-                    logging.info(f"Final fallback to {preferred}")
+                    logger.info(f"Final fallback to {preferred}")
                     return preferred
 
-        logging.debug("Could not find any suitable configurable service")
+        logger.debug("Could not find any suitable configurable service")
         return None
 
     except Exception as e:
-        logging.error(f"Error finding configurable service: {e}")
+        logger.error(f"Error finding configurable service: {e}")
         return None
 
 
@@ -330,14 +333,14 @@ def get_all_active_services(include_vpn=False):
             # Try to get device from hardware map
             device = service_to_device.get(service)
             if device:
-                logging.debug(f"Found device {device} from map for {service}")
+                logger.debug(f"Found device {device} from map for {service}")
 
             # If not, try parsing from -getinfo
             info = run_command(["networksetup", "-getinfo", service], capture=True)
             match = re.search(r"Device: (\w+)", info)
             if match:
                 device = match.group(1)
-                logging.debug(f"Found device {device} from -getinfo for {service}")
+                logger.debug(f"Found device {device} from -getinfo for {service}")
 
             if device:
                 ip = get_interface_ip_native(device)
@@ -350,22 +353,22 @@ def get_all_active_services(include_vpn=False):
                     )
                     if ip_output and ip_output.strip():
                         ip = ip_output.strip()
-                        logging.debug(f"Found IP {ip} via ipconfig for {device}")
+                        logger.debug(f"Found IP {ip} via ipconfig for {device}")
                     else:
-                        logging.debug(f"No IP found via ipconfig for {device}")
+                        logger.debug(f"No IP found via ipconfig for {device}")
                 else:
-                    logging.debug(f"Found IP {ip} via native for {device}")
+                    logger.debug(f"Found IP {ip} via native for {device}")
 
                 if ip and re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip):
                     if include_vpn or not device.startswith(VPN_INTERFACE_PREFIX):
                         active.append((service, device))
-                        logging.debug(
+                        logger.debug(
                             f"Added active service: {service} ({device}) with IP {ip}"
                         )
                 else:
-                    logging.debug(f"Invalid or no IP for {service} ({device})")
+                    logger.debug(f"Invalid or no IP for {service} ({device})")
             else:
-                logging.debug(f"No device found for {service}")
+                logger.debug(f"No device found for {service}")
     except Exception as e:
-        logging.error(f"Error getting active services: {e}")
+        logger.error(f"Error getting active services: {e}")
     return active

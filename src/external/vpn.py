@@ -1,15 +1,19 @@
 """
-VPN client integrations for NetWatcher.
+VPN detection and status retrieval for NetWatcher.
 
-This module provides functions to detect and gather information
-from various VPN clients.
+This module provides functions to detect VPN connections and get details
+from specific VPN clients like Cisco AnyConnect.
 """
 
-import logging
 import re
+import subprocess
 from pathlib import Path
 
-from ..utils import run_command
+from ..logging_config import get_logger
+from ..utils import get_service_name_native, run_command
+
+# Get module logger
+logger = get_logger(__name__)
 
 
 def get_vpn_details():
@@ -22,9 +26,9 @@ def get_vpn_details():
         if service_id and "com.cisco" in service_id.lower():
             return get_cisco_vpn_details(service_id)
     except Exception as e:
-        logging.debug(f"Failed to get service ID for VPN detection: {e}")
+        logger.debug(f"Failed to get service ID for VPN detection: {e}")
 
-    logging.debug("No VPN client auto-detection available")
+    logger.debug("No VPN client auto-detection available")
     return None
 
 
@@ -39,10 +43,10 @@ def find_cisco_vpn_binary():
 
     for path in common_paths:
         if Path(path).exists():
-            logging.debug(f"Found Cisco VPN binary: {path}")
+            logger.debug(f"Found Cisco VPN binary: {path}")
             return path
 
-    logging.debug("No Cisco VPN binary found")
+    logger.debug("No Cisco VPN binary found")
     return None
 
 
@@ -53,18 +57,18 @@ def get_cisco_vpn_details(service_id):
 
     vpn_binary = find_cisco_vpn_binary()
     if not vpn_binary:
-        logging.debug("Cisco VPN detected but no CLI binary found")
+        logger.debug("Cisco VPN detected but no CLI binary found")
         return None
 
-    logging.info("Retrieving Cisco VPN status")
+    logger.info("Retrieving Cisco VPN status")
     try:
         stats = run_command([vpn_binary, "stats"], capture=True)
         if not stats or "state: Disconnected" in stats:
-            logging.info("Cisco VPN is disconnected")
+            logger.info("Cisco VPN is disconnected")
             return None
 
         # Parse connection details
-        logging.debug(f"Cisco VPN stats output: {stats}")
+        logger.debug(f"Cisco VPN stats output: {stats}")
 
         # Match Bash logic: look for "Server Address:" and "Protocol:" fields
         server_match = re.search(r"server address:\s*(.+)", stats, re.IGNORECASE)
@@ -86,9 +90,9 @@ def get_cisco_vpn_details(service_id):
         details = "\n".join(details_parts)  # Use newlines for menu display
         # Log details on a single line to avoid line breaks in logs
         details_single_line = ", ".join(details_parts)
-        logging.info(f"Cisco VPN details: {details_single_line}")
+        logger.info(f"Cisco VPN details: {details_single_line}")
         return details
 
     except Exception as e:
-        logging.debug(f"Cisco VPN stats lookup failed: {e}")
+        logger.debug(f"Cisco VPN stats lookup failed: {e}")
         return None

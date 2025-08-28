@@ -6,12 +6,15 @@ from ip-api.com with proxy support.
 """
 
 import json
-import logging
 import urllib.error
 import urllib.request
 from pathlib import Path
 
 from .. import config
+from ..logging_config import get_logger
+
+# Get module logger
+logger = get_logger(__name__)
 
 
 def get_connection_details(silent=False):
@@ -34,7 +37,7 @@ def get_connection_details(silent=False):
         Uses ip-api.com as the primary service for connection details.
     """
     if not silent:
-        logging.info("Fetching connection details from ip-api.com")
+        logger.info("Fetching connection details from ip-api.com")
 
     try:
         # Check if we have an active proxy configuration via curlrc
@@ -83,7 +86,7 @@ def get_connection_details(silent=False):
             }
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as e:
         if not silent:
-            logging.error(f"Failed to fetch connection details: {e}")
+            logger.error(f"Failed to fetch connection details: {e}")
         return {
             "ip": "N/A",
             "city": "N/A",
@@ -93,7 +96,7 @@ def get_connection_details(silent=False):
         }
     except Exception as e:
         if not silent:
-            logging.error(f"Unexpected error fetching connection details: {e}")
+            logger.error(f"Unexpected error fetching connection details: {e}")
         return {
             "ip": "N/A",
             "city": "N/A",

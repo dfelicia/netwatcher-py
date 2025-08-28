@@ -5,9 +5,11 @@ This module provides functions to determine the best matching location
 based on current network environment.
 """
 
-import logging
-
+from ..logging_config import get_logger
 from ..network import is_vpn_active
+
+# Get module logger
+logger = get_logger(__name__)
 
 
 def find_matching_location(
@@ -15,13 +17,13 @@ def find_matching_location(
     current_ssid,
     current_search_domains,
     vpn_active=None,
-    log_level=logging.INFO,
+    log_level=20,  # INFO level
 ):
     """Find the best matching location based on network environment."""
     if vpn_active is None:
         vpn_active = is_vpn_active()
 
-    logging.log(log_level, f"Location matching: VPN={vpn_active}, SSID={current_ssid}")
+    logger.log(log_level, f"Location matching: VPN={vpn_active}, SSID={current_ssid}")
 
     locations = config_data.get("locations", {})
 
@@ -55,43 +57,41 @@ def find_matching_location(
         if match:
             return match
 
-    logging.log(log_level, "No specific match found, using default")
+    logger.log(log_level, "No specific match found, using default")
     return "default"
 
 
-def _find_vpn_location(locations, log_level=logging.INFO):
+def _find_vpn_location(locations, log_level=20):  # INFO level
     """Find location with proxy configuration (for VPN scenarios)."""
     for name, settings in locations.items():
         if name != "default" and settings.get("proxy_url"):
-            logging.log(log_level, f"VPN active - selected '{name}' (has proxy config)")
+            logger.log(log_level, f"VPN active - selected '{name}' (has proxy config)")
             return name
     return None
 
 
-def _find_ssid_location(locations, ssid, log_level=logging.INFO):
+def _find_ssid_location(locations, ssid, log_level=20):  # INFO level
     """Find location matching current SSID."""
     for name, settings in locations.items():
         if name != "default" and ssid in settings.get("ssids", []):
-            logging.log(log_level, f"SSID match - selected '{name}' for SSID '{ssid}'")
+            logger.log(log_level, f"SSID match - selected '{name}' for SSID '{ssid}'")
             return name
     return None
 
 
-def _find_corporate_location(locations, log_level=logging.INFO):
+def _find_corporate_location(locations, log_level=20):  # INFO level
     """Find corporate-like location (has custom NTP)."""
     for name, settings in locations.items():
         if name == "default":
             continue
         ntp_server = settings.get("ntp_server", "")
         if ntp_server and ntp_server != "time.apple.com":
-            logging.log(
-                log_level, f"VPN active - selected '{name}' (has corporate NTP)"
-            )
+            logger.log(log_level, f"VPN active - selected '{name}' (has corporate NTP)")
             return name
     return None
 
 
-def _find_domain_location(locations, current_domains, log_level=logging.INFO):
+def _find_domain_location(locations, current_domains, log_level=20):  # INFO level
     """Find location matching current search domains using set intersection."""
     current_set = set(current_domains)
     for name, settings in locations.items():
@@ -99,12 +99,12 @@ def _find_domain_location(locations, current_domains, log_level=logging.INFO):
             continue
         config_domains = set(settings.get("dns_search_domains", []))
         if config_domains.intersection(current_set):
-            logging.log(log_level, f"Domain match - selected '{name}'")
+            logger.log(log_level, f"Domain match - selected '{name}'")
             return name
     return None
 
 
-def _find_home_location(locations, log_level=logging.INFO):
+def _find_home_location(locations, log_level=20):  # INFO level
     """Find home-like location (minimal configuration)."""
     for name, settings in locations.items():
         if name == "default":
@@ -114,6 +114,6 @@ def _find_home_location(locations, log_level=logging.INFO):
             not settings.get("proxy_url")
             and len(settings.get("dns_search_domains", [])) <= 2
         ):
-            logging.log(log_level, f"No VPN - selected '{name}' (home-like config)")
+            logger.log(log_level, f"No VPN - selected '{name}' (home-like config)")
             return name
     return None

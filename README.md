@@ -106,6 +106,48 @@ netwatcher service install
 
 The application will start automatically and you'll see the NetWatcher icon in your menu bar. You can monitor its activity in the log file at `~/Library/Logs/netwatcher.log`.
 
+## Upgrading NetWatcher
+
+### From Version 0.1.0 or Earlier
+
+If you have NetWatcher 0.1.0 or earlier installed, you **must** force reinstall due to significant internal changes in version 0.2.0, including a new centralized logging system:
+
+```bash
+# Stop the service if running
+netwatcher service stop 2>/dev/null || true
+
+# Navigate to your NetWatcher directory
+cd /path/to/netwatcher-py
+
+# Pull the latest changes
+git pull origin main
+
+# Activate your virtual environment
+source .venv/bin/activate
+
+# Force reinstall with the new version
+pip install --force-reinstall --editable .
+
+# Verify the upgrade
+netwatcher --help
+
+# Restart the service
+netwatcher service start
+```
+
+### For All Other Updates
+
+For routine updates, a simple reinstall is usually sufficient:
+
+```bash
+# Navigate to your NetWatcher directory and pull changes
+cd /path/to/netwatcher-py && git pull origin main
+
+# Activate virtual environment and reinstall
+source .venv/bin/activate
+pip install --editable .
+```
+
 ## Using the CLI
 
 NetWatcher provides a command-line interface for configuration and service management:

@@ -1,20 +1,24 @@
 """
 Command execution utilities for NetWatcher.
 
-This module provides robust command execution with error handling and logging.
+This module provides robust command execution with error handling and logger.
 It serves as the central location for all command execution to avoid duplication.
 """
 
-import logging
 import shlex
 import subprocess
+
+from ..logging_config import get_logger
+
+# Get module logger
+logger = get_logger(__name__)
 
 
 def run_command(
     command, capture=False, text=True, input=None, shell=False, quiet_on_error=False
 ):
     """
-    Execute a command with robust error handling and logging.
+    Execute a command with robust error handling and logger.
 
     Args:
         command: Command to execute (list of strings or string if shell=True)
@@ -32,7 +36,7 @@ def run_command(
     if shell and isinstance(command, list):
         command = shlex.join(command)
 
-    logging.debug(f"Running command ({'shell' if shell else 'list'}): {command}")
+    logger.debug(f"Running command ({'shell' if shell else 'list'}): {command}")
 
     try:
         result = subprocess.run(
@@ -49,19 +53,19 @@ def run_command(
         # Log output appropriately
         if result.stderr:
             if result.returncode != 0:
-                logging.debug(f"Command failed with stderr: {result.stderr.strip()}")
+                logger.debug(f"Command failed with stderr: {result.stderr.strip()}")
             else:
-                logging.debug(f"Command succeeded with stderr: {result.stderr.strip()}")
+                logger.debug(f"Command succeeded with stderr: {result.stderr.strip()}")
 
         if result.returncode != 0:
             if not quiet_on_error:
-                logging.debug(
+                logger.debug(
                     f"Command '{command}' failed with status {result.returncode}"
                 )
                 if result.stdout:
-                    logging.debug(f"Stdout: {result.stdout.strip()}")
+                    logger.debug(f"Stdout: {result.stdout.strip()}")
             else:
-                logging.debug(f"Command '{command}' failed (expected)")
+                logger.debug(f"Command '{command}' failed (expected)")
 
             return (
                 ((result.stdout or "") + (result.stderr or "")).strip()
@@ -74,8 +78,8 @@ def run_command(
 
     except FileNotFoundError:
         cmd_name = command.split()[0] if shell else command[0]
-        logging.error(f"Command not found: {cmd_name}")
+        logger.error(f"Command not found: {cmd_name}")
         return None if capture else False
     except Exception as e:
-        logging.error(f"Unexpected error running command '{command}': {e}")
+        logger.error(f"Unexpected error running command '{command}': {e}")
         return None if capture else False

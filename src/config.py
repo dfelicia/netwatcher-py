@@ -110,9 +110,11 @@ def load_config():
                     ]
                 del config["locations"][loc_name]["domains"]
 
-    import logging
+    # Import logging from our centralized module
+    from .logging_config import get_logger
 
-    logging.info(f"Loaded locations: {list(config.get('locations', {}).keys())}")
+    logger = get_logger(__name__)
+    logger.info(f"Loaded locations: {list(config.get('locations', {}).keys())}")
     return config
 
 

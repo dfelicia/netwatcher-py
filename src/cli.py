@@ -918,8 +918,18 @@ def configure(location_name):
     )
 
     # --- Save Configuration ---
+    # Ensure the configuration always has the complete default structure
+    if "settings" not in cfg:
+        cfg["settings"] = config.DEFAULT_CONFIG["settings"].copy()
+
     if "locations" not in cfg:
         cfg["locations"] = {}
+
+    # Ensure the default location exists for fallback settings
+    if "default" not in cfg["locations"]:
+        cfg["locations"]["default"] = config.DEFAULT_CONFIG["locations"][
+            "default"
+        ].copy()
 
     # Convert PyObjC NSString objects to Python strings (fixes TOML serialization)
     # This is needed because CoreWLAN returns NSString objects that toml.dump()
@@ -970,10 +980,12 @@ def test(debug):
     Use --debug for verbose output showing network detection details.
     """
     # Import watcher here to avoid circular dependency issues at startup
-    from src import watcher
+    from . import watcher
+    from .logging_config import setup_logging
 
     # Setup logging to show INFO messages, and DEBUG if the flag is passed.
-    watcher.setup_logging(debug=debug)
+    # Force reinit to ensure debug setting takes effect even if logging was already initialized
+    setup_logging(debug=debug, force_reinit=True)
 
     click.echo("Running test...")
     click.echo("Evaluating current network state and applying settings.")
