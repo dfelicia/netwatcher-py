@@ -2,6 +2,8 @@
 
 A macOS utility that automatically reconfigures system settings when your network environment changes. It runs as a menu bar application and background service, monitoring for network changes and applying predefined settings for different locations.
 
+📖 **[Visual Guide: How NetWatcher Works](https://dfelicia.github.io/netwatcher-py/netwatcher_visual_guide.html)** - Interactive visual explanation of the architecture and flow
+
 ## How It Works
 
 NetWatcher is built with Python and uses native macOS frameworks for reliable, event-driven network automation:
