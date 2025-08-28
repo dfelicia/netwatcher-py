@@ -111,7 +111,7 @@ The application will start automatically and you'll see the NetWatcher icon in y
 NetWatcher provides a command-line interface for configuration and service management:
 
 - **Configure network locations**: `netwatcher configure`
-- **Test current network detection**: `netwatcher test`
+- **Test current network detection**: `netwatcher test` (use `--debug` for verbose output)
 - **Check system permissions**: `netwatcher check`
 - **Install the background service**: `netwatcher service install`
 - **Uninstall the background service**: `netwatcher service uninstall`
@@ -158,7 +158,7 @@ No manual VPN configuration is required - the tool will automatically detect and
 
 ```toml
 [settings]
-debug = false
+debug = false  # Enables DEBUG logging for the background service (can also use --debug with CLI commands like test)
 debounce_seconds = 5
 
 [locations.Home]

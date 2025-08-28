@@ -22,17 +22,19 @@ from ..utils import (
 )
 
 
-def get_default_route_interface():
+def get_default_route_interface(log_level=logging.INFO):
     """Gets the default route interface using native APIs instead of netstat."""
     try:
         # Try native method first
         native_interface = get_default_route_interface_native()
         if native_interface:
-            logging.debug(f"Using native method for default route: {native_interface}")
+            logging.log(
+                log_level, f"Using native method for default route: {native_interface}"
+            )
             return native_interface
 
         # Fall back to netstat if native method fails
-        logging.debug("Falling back to netstat for default route")
+        logging.log(log_level, "Falling back to netstat for default route")
         netstat_output = run_command(["netstat", "-rn", "-f", "inet"], capture=True)
         if netstat_output:
             for line in netstat_output.split("\n"):
@@ -43,7 +45,7 @@ def get_default_route_interface():
                         return interface
         return None
     except Exception as e:
-        logging.error(f"Error getting default route interface: {e}")
+        logging.log(log_level, f"Error getting default route interface: {e}")
         return None
 
 

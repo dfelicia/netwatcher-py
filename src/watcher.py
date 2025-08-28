@@ -133,13 +133,13 @@ class NetWatcherApp(rumps.App):
             self.runloop = CFRunLoopGetCurrent()
             source = SCDynamicStoreCreateRunLoopSource(None, self.store, 0)
             CFRunLoopAddSource(self.runloop, source, kCFRunLoopDefaultMode)
-            logging.info("SystemConfiguration watcher is set up.")
+            logging.info("SystemConfiguration watcher is set up")
 
             # Trigger initial evaluation after a short delay
             self.debounce_timer = Timer(1.0, self.evaluate_network_state)
             self.debounce_timer.start()
         else:
-            logging.error("Failed to create SCDynamicStore.")
+            logging.error("Failed to create SCDynamicStore")
 
     def update_menu(self, location_name, connection_info=None, vpn_status=None):
         """Updates the menu bar title and menu items."""
@@ -317,49 +317,61 @@ class NetWatcherApp(rumps.App):
             # Reload config in case it changed
             self.config = config.load_config()
 
-            # This now calls the consolidated function in actions
-            location_name, vpn_active, vpn_details = (
-                actions.check_and_apply_location_settings(self.config)
+            # First check without applying or fetching VPN details
+            new_location, vpn_active, _ = actions.check_and_apply_location_settings(
+                self.config, apply=False, fetch_details=False, log_level=logging.DEBUG
             )
-            self.current_location = location_name
 
-            # Update connection info and VPN status for the menu (fetch silently)
-            connection_info = actions.get_connection_details(silent=True)
-            # Use VPN details from the evaluation (no need to fetch again)
+            location_changed = new_location != self.current_location
+            vpn_changed = vpn_active != self.prev_vpn_active
 
-            # Update VPN resolver files if VPN state changed
-            if vpn_active != self.prev_vpn_active:
-                if vpn_active and location_name in self.config.get("locations", {}):
-                    location_config = self.config["locations"][location_name]
-                    search_domains = location_config.get("dns_search_domains", [])
-                    if search_domains:
-                        vpn_interface = get_default_route_interface()
-                        vpn_dns = (
-                            get_current_dns_servers(vpn_interface)
-                            if vpn_interface and vpn_interface.startswith("utun")
-                            else []
-                        )
-                        self.created_resolver_files = create_vpn_resolver_files(
-                            search_domains, vpn_dns
-                        )
-                else:
-                    remove_vpn_resolver_files(self.created_resolver_files)
-                    run_command(["sudo", "dscacheutil", "-flushcache"])
-                    self.created_resolver_files = []
+            if location_changed or vpn_changed:
+                # Apply settings and fetch VPN details if changed
+                location_name, vpn_active, vpn_details = (
+                    actions.check_and_apply_location_settings(
+                        self.config, apply=True, fetch_details=True
+                    )
+                )
+                self.current_location = location_name
 
-                    # Disable proxies on all active services on disconnect
-                    active_services = get_all_active_services()
-                    for serv_name, iface in active_services:
-                        set_proxy(serv_name, None)
+                # Update VPN resolver files if VPN state changed
+                if vpn_changed:
+                    if vpn_active and location_name in self.config.get("locations", {}):
+                        location_config = self.config["locations"][location_name]
+                        search_domains = location_config.get("dns_search_domains", [])
+                        if search_domains:
+                            vpn_interface = get_default_route_interface()
+                            vpn_dns = (
+                                get_current_dns_servers(vpn_interface)
+                                if vpn_interface and vpn_interface.startswith("utun")
+                                else []
+                            )
+                            self.created_resolver_files = create_vpn_resolver_files(
+                                search_domains, vpn_dns
+                            )
+                    else:
+                        remove_vpn_resolver_files(self.created_resolver_files)
+                        run_command(["sudo", "dscacheutil", "-flushcache"])
+                        self.created_resolver_files = []
 
-                self.prev_vpn_active = vpn_active
+                        # Disable proxies on all active services on disconnect
+                        active_services = get_all_active_services()
+                        for serv_name, iface in active_services:
+                            set_proxy(serv_name, None)
 
-            # Update the menu bar title and menu items
-            self.update_menu(
-                location_name,
-                connection_info=connection_info,
-                vpn_status=vpn_details,
-            )
+                    self.prev_vpn_active = vpn_active
+
+                # Update the menu bar title and menu items
+                connection_info = actions.get_connection_details(silent=True)
+                self.update_menu(
+                    location_name,
+                    connection_info=connection_info,
+                    vpn_status=vpn_details,
+                )
+            else:
+                logging.debug(
+                    f"No change in location ({new_location}) or VPN state, skipping apply"
+                )
 
         finally:
             # Always clear the evaluation flag
@@ -399,7 +411,7 @@ def main(debug=False):
         shared_app = AppKit.NSApplication.sharedApplication()
         # Set activation policy to accessory (background only, no dock icon)
         shared_app.setActivationPolicy_(AppKit.NSApplicationActivationPolicyAccessory)
-        logging.info("Set application activation policy to hide from dock")
+        logging.debug("Set application activation policy to hide from dock")
     except Exception as e:
         logging.warning(f"Could not hide from dock: {e}")
 

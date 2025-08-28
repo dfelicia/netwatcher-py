@@ -55,7 +55,7 @@ def get_active_resolver_block(interface_name):
     return None
 
 
-def get_current_dns_servers(interface_name):
+def get_current_dns_servers(interface_name, log_level=logging.INFO):
     """Get current DNS servers for a specific interface."""
     if not interface_name:
         return []
@@ -70,14 +70,14 @@ def get_current_dns_servers(interface_name):
         servers.append(match.group(1))
 
     if servers:
-        logging.info(f"Found DNS servers for '{interface_name}': {servers}")
+        logging.log(log_level, f"Found DNS servers for '{interface_name}': {servers}")
     else:
-        logging.debug(f"No DNS servers found for '{interface_name}'")
+        logging.log(log_level, f"No DNS servers found for '{interface_name}'")
 
     return servers
 
 
-def get_current_search_domains(interface_name):
+def get_current_search_domains(interface_name, log_level=logging.INFO):
     """Get current DNS search domains for a specific interface."""
     if not interface_name:
         return []
@@ -93,21 +93,24 @@ def get_current_search_domains(interface_name):
 
     if domains:
         if len(domains) == 1:
-            logging.info(f"Found domain '{domains[0]}' for '{interface_name}'")
+            logging.log(
+                log_level, f"Found domain '{domains[0]}' for '{interface_name}'"
+            )
         else:
-            logging.info(
-                f"Found domain '{domains[0]}' and {len(domains) - 1} more for '{interface_name}'"
+            logging.log(
+                log_level,
+                f"Found domain '{domains[0]}' and {len(domains) - 1} more for '{interface_name}'",
             )
     else:
-        logging.debug(f"No search domains found for '{interface_name}'")
+        logging.log(log_level, f"No search domains found for '{interface_name}'")
 
     return domains
 
 
-def get_current_ssid():
+def get_current_ssid(log_level=logging.INFO):
     """Gets the SSID of the current Wi-Fi network using CoreWLAN."""
     if not CoreWLAN:
-        logging.debug("CoreWLAN not available")
+        logging.log(log_level, "CoreWLAN not available")
         return None
 
     try:
@@ -115,34 +118,36 @@ def get_current_ssid():
         if interface:
             return interface.ssid()
     except Exception as e:
-        logging.error(f"Could not get current SSID using CoreWLAN: {e}")
+        logging.log(log_level, f"Could not get current SSID using CoreWLAN: {e}")
     return None
 
 
-def is_vpn_active():
+def is_vpn_active(log_level=logging.INFO):
     """Check if VPN is active by examining the default route interface."""
-    logging.info("Checking for active VPN connection")
+    logging.log(log_level, "Checking for active VPN connection")
 
     try:
         default_interface = get_default_route_interface()
 
         if not default_interface:
-            logging.info("No default route interface found")
+            logging.log(log_level, "No default route interface found")
             return False
 
         if default_interface.startswith(VPN_INTERFACE_PREFIX):
-            logging.info(f"VPN detected: default route on {default_interface}")
+            logging.log(
+                log_level, f"VPN detected: default route on {default_interface}"
+            )
             return True
         else:
-            logging.info(f"No VPN: default route on {default_interface}")
+            logging.log(log_level, f"No VPN: default route on {default_interface}")
             return False
 
     except Exception as e:
-        logging.error(f"Error checking VPN status: {e}")
+        logging.log(log_level, f"Error checking VPN status: {e}")
         return False
 
 
-def get_primary_service_interface():
+def get_primary_service_interface(log_level=logging.INFO):
     """Get the primary network service and interface information."""
     from .interfaces import (
         get_primary_service_id,
@@ -162,11 +167,11 @@ def get_primary_service_interface():
 
         # Fall back to scutil if native method incomplete
         if not interface or not service_id:
-            logging.debug("Using scutil fallback for primary service info")
+            logging.log(log_level, "Using scutil fallback for primary service info")
             interface, service_id = get_primary_service_scutil()
 
         if not (interface and service_id):
-            logging.debug("Could not determine primary interface and service")
+            logging.log(log_level, "Could not determine primary interface and service")
             return None, None, None
 
         # Get user-friendly service name
@@ -176,16 +181,18 @@ def get_primary_service_interface():
         if interface.startswith(VPN_INTERFACE_PREFIX):
             underlying_service = find_configurable_service()
             if underlying_service:
-                logging.debug(
-                    f"VPN detected, using underlying service: {underlying_service}"
+                logging.log(
+                    log_level,
+                    f"VPN detected, using underlying service: {underlying_service}",
                 )
                 return underlying_service, interface, service_id
 
-        logging.debug(
-            f"Primary service: {service_name} (ID: {service_id}, interface: {interface})"
+        logging.log(
+            log_level,
+            f"Primary service: {service_name} (ID: {service_id}, interface: {interface})",
         )
         return service_name, interface, service_id
 
     except Exception as e:
-        logging.error(f"Error getting primary service: {e}")
+        logging.log(log_level, f"Error getting primary service: {e}")
         return None, None, None

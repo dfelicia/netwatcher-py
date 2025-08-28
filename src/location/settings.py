@@ -74,8 +74,10 @@ def apply_location_settings(
         set_proxy(service_name)  # disable
 
 
-def check_and_apply_location_settings(cfg):
-    """Determine current location and apply appropriate settings.
+def check_and_apply_location_settings(
+    cfg, apply=True, fetch_details=True, log_level=logging.INFO
+):
+    """Determine current location and apply appropriate settings if apply=True.
 
     Returns:
         tuple: (location_name, vpn_active, vpn_details)
@@ -84,71 +86,71 @@ def check_and_apply_location_settings(cfg):
             - vpn_details: str or None, VPN connection details if available
     """
     # Get current network information
-    network_info = _get_current_network_info()
+    network_info = _get_current_network_info(log_level=log_level)
     if not network_info:
-        logging.debug("Could not determine network configuration")
+        logging.log(log_level, "Could not determine network configuration")
         return "Unknown", False, None
 
     service_name, interface, service_id = network_info
-    logging.info(f"Primary service: {service_name} ({interface})")
+    logging.log(log_level, f"Primary service: {service_name} ({interface})")
 
     # Get network details for location matching
-    current_ssid = get_current_ssid()
-    current_dns_servers = get_current_dns_servers(interface)
-    current_search_domains = get_current_search_domains(interface)
+    current_ssid = get_current_ssid(log_level=log_level)
+    current_dns_servers = get_current_dns_servers(interface, log_level=log_level)
+    current_search_domains = get_current_search_domains(interface, log_level=log_level)
 
-    logging.info(f"Current SSID: {current_ssid}")
-    logging.info(f"DNS servers: {current_dns_servers}")
-    logging.debug(f"Search domains: {current_search_domains}")
-    logging.info(f"Search domains: {len(current_search_domains)} found")
+    logging.log(log_level, f"Current SSID: {current_ssid}")
+    logging.log(log_level, f"DNS servers: {current_dns_servers}")
+    logging.log(log_level, f"Search domains: {len(current_search_domains)} found")
 
     # Check VPN status once
-    vpn_active = is_vpn_active()
+    vpn_active = is_vpn_active(log_level=log_level)
     vpn_details = None
 
     if vpn_active:
-        vpn_details = get_vpn_details()
-        if vpn_details:
-            logging.debug(f"VPN details: {vpn_details}")
+        if fetch_details:
+            vpn_details = get_vpn_details()
 
         # Additional validation for VPN transitions
         if len(current_search_domains) <= 1:
-            logging.debug(
-                "VPN detected but few search domains - network may be transitioning"
+            logging.log(
+                log_level,
+                "VPN detected but few search domains - network may be transitioning",
             )
 
     # Find and apply location settings
     location_name = find_matching_location(
-        cfg, current_ssid, current_search_domains, vpn_active
+        cfg, current_ssid, current_search_domains, vpn_active, log_level=log_level
     )
 
     available_locations = list(cfg.get("locations", {}).keys())
-    logging.info(f"Available locations: {available_locations}")
-    logging.info(f"Checking if '{location_name}' in available locations")
+    logging.log(log_level, f"Available locations: {available_locations}")
+    logging.log(log_level, f"Checking if '{location_name}' in available locations")
 
     if location_name in cfg.get("locations", {}):
-        logging.info(f"Applying settings for location: {location_name}")
-        location_config = cfg["locations"][location_name]
-        proxy_url = location_config.get("proxy_url", "")
+        if apply:
+            logging.log(log_level, f"Applying settings for location: {location_name}")
+            location_config = cfg["locations"][location_name]
+            proxy_url = location_config.get("proxy_url", "")
 
-        active_services = get_all_active_services()
-        for serv_name, iface in active_services:
-            logging.info(f"Applying to {serv_name} ({iface})")
-            skip_dns = vpn_active
-            apply_location_settings(
-                location_config,
-                serv_name,
-                iface,
-                vpn_active,
-                skip_dns=skip_dns,
-                proxy_result=proxy_url,
-            )
+            active_services = get_all_active_services()
+            for serv_name, iface in active_services:
+                logging.log(log_level, f"Applying to {serv_name} ({iface})")
+                skip_dns = vpn_active
+                apply_location_settings(
+                    location_config,
+                    serv_name,
+                    iface,
+                    vpn_active,
+                    skip_dns=skip_dns,
+                    proxy_result=proxy_url,
+                )
 
-        # System-wide settings
-        if "printer" in location_config and location_config["printer"]:
-            set_default_printer(location_config["printer"])
-        if "ntp_server" in location_config and location_config["ntp_server"]:
-            set_ntp_server(location_config["ntp_server"])
+            # System-wide settings
+            if "printer" in location_config and location_config["printer"]:
+                set_default_printer(location_config["printer"])
+            if "ntp_server" in location_config and location_config["ntp_server"]:
+                set_ntp_server(location_config["ntp_server"])
     else:
         logging.warning(f"Location '{location_name}' not found in config")
         return "Unknown", vpn_active, vpn_details
@@ -188,7 +190,12 @@ def create_vpn_resolver_files(search_domains, vpn_dns_servers=None):
             # Write using tee to avoid redirection issues with sudo
             run_command(["sudo", "tee", str(file_path)], input=content)
             created_files.append(file_path)
-            logging.info(f"Created resolver file for {domain}")
+            logging.debug(f"Created resolver file for {domain}")
+
+        if created_files:
+            logging.info(
+                f"Created {len(created_files)} resolver files in /etc/resolver"
+            )
 
         return created_files
 
@@ -199,18 +206,22 @@ def create_vpn_resolver_files(search_domains, vpn_dns_servers=None):
 
 def remove_vpn_resolver_files(created_files):
     """Remove previously created resolver files when VPN disconnects."""
+    num_files = len(created_files)
     for file_path in created_files:
         try:
             run_command(["sudo", "rm", "-f", str(file_path)])
-            logging.info(f"Removed resolver file: {file_path}")
+            logging.debug(f"Removed resolver file: {file_path}")
         except Exception as e:
             logging.error(f"Failed to remove {file_path}: {e}")
 
+    if num_files > 0:
+        logging.info(f"Removed {num_files} resolver files from /etc/resolver")
 
-def _get_current_network_info():
+
+def _get_current_network_info(log_level=logging.INFO):
     """Get current network service and interface information."""
     try:
-        return get_primary_service_interface()
+        return get_primary_service_interface(log_level=log_level)
     except Exception as e:
-        logging.error(f"Error getting network info: {e}")
+        logging.log(log_level, f"Error getting network info: {e}")
         return None
