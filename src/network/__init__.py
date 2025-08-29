@@ -1,7 +1,10 @@
 """
 Network module for NetWatcher.
 
-This module handles all network-related operations including:
+This module han    "set_proxy",
+    "set_default_printer",
+    "set_ntp_server",
+    "clear_cache",s all network-related operations including:
 - Network state detection (SSID, DNS, VPN status)
 - Network interface management
 - Network configuration (DNS servers, proxies, NTP)
@@ -32,6 +35,8 @@ from .configuration import (
     set_default_printer,
     set_ntp_server,
 )
+
+from .cache import clear_cache
 
 __all__ = [
     # Constants

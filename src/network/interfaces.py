@@ -31,9 +31,7 @@ def get_default_route_interface(log_level=20):  # INFO level
         # Try native method first
         native_interface = get_default_route_interface_native()
         if native_interface:
-            logger.log(
-                log_level, f"Using native method for default route: {native_interface}"
-            )
+            logger.debug(f"Using native method for default route: {native_interface}")
             return native_interface
 
         # Fall back to netstat if native method fails

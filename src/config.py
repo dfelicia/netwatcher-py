@@ -73,7 +73,7 @@ def get_config_path():
 
 
 def load_config():
-    """Loads the configuration from the TOML file and repairs it if necessary."""
+    """Loads the configuration from the TOML file."""
     path = get_config_path()
     if not path.exists():
         # Create a default config if one doesn't exist
@@ -85,36 +85,11 @@ def load_config():
     with open(path, "r") as f:
         config = toml.load(f)
 
-    # --- Repair logic for malformed SSIDs and legacy 'domains' key ---
-    if "locations" in config:
-        for loc_name, loc_conf in config["locations"].items():
-            # Repair malformed SSIDs (list of lists of chars)
-            if "ssids" in loc_conf and isinstance(loc_conf["ssids"], list):
-                repaired_ssids = []
-                needs_repair = False
-                for ssid in loc_conf["ssids"]:
-                    if isinstance(ssid, list):
-                        repaired_ssids.append("".join(ssid))
-                        needs_repair = True
-                    elif isinstance(ssid, str):
-                        repaired_ssids.append(ssid)
-
-                if needs_repair:
-                    config["locations"][loc_name]["ssids"] = repaired_ssids
-
-            # Migrate legacy 'domains' to 'dns_search_domains'
-            if "domains" in loc_conf:
-                if "dns_search_domains" not in loc_conf:
-                    config["locations"][loc_name]["dns_search_domains"] = loc_conf[
-                        "domains"
-                    ]
-                del config["locations"][loc_name]["domains"]
-
     # Import logging from our centralized module
     from .logging_config import get_logger
 
     logger = get_logger(__name__)
-    logger.info(f"Loaded locations: {list(config.get('locations', {}).keys())}")
+    logger.debug(f"Loaded locations: {list(config.get('locations', {}).keys())}")
     return config
 
 

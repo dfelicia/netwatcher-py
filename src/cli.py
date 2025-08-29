@@ -993,6 +993,11 @@ def test(debug):
     # This function now contains the core logic
     # It will log its actions, which is what we want for a test command.
     try:
+        # Clear network cache for fresh test data
+        from .network import clear_cache
+
+        clear_cache()
+
         cfg = config.load_config()
         if not cfg.get("locations"):
             click.echo(

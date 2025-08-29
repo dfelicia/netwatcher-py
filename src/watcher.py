@@ -25,6 +25,7 @@ from .network import (
     get_default_route_interface,
     get_current_dns_servers,
     get_all_active_services,
+    clear_cache,
 )
 from .network.configuration import set_proxy
 from .logging_config import setup_logging, get_logger
@@ -191,6 +192,12 @@ class NetWatcherApp(rumps.App):
         """Callback to manually run a configuration test."""
         logger.info("Manual test triggered from menu bar.")
 
+        # Clear cache to ensure fresh data for manual test
+        clear_cache()
+
+        # Reload config in case user changed it since last network evaluation
+        self.config = config.load_config()
+
         # Run the evaluation
         location_name, vpn_active, vpn_details = (
             actions.check_and_apply_location_settings(self.config)
@@ -292,8 +299,11 @@ class NetWatcherApp(rumps.App):
         try:
             logger.info("Evaluating network state after debounce")
 
-            # Reload config in case it changed
-            self.config = config.load_config()
+            # Clear network state cache to ensure fresh data
+            clear_cache()
+
+            # Use existing config (don't reload on every network change)
+            # Config is only reloaded for manual tests in case user changed it
 
             # First check without applying or fetching VPN details
             new_location, vpn_active, _ = actions.check_and_apply_location_settings(
@@ -355,8 +365,9 @@ class NetWatcherApp(rumps.App):
                 )
 
         finally:
-            # Always clear the evaluation flag
+            # Always clear the evaluation flag and network cache
             self.is_evaluating = False
+            clear_cache()
 
     def quit_app(self, _):
         """Gracefully stop the launchd service and quit the app."""

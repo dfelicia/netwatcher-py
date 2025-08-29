@@ -60,7 +60,7 @@ def get_cisco_vpn_details(service_id):
         logger.debug("Cisco VPN detected but no CLI binary found")
         return None
 
-    logger.info("Retrieving Cisco VPN status")
+    logger.debug("Retrieving Cisco VPN status")
     try:
         stats = run_command([vpn_binary, "stats"], capture=True)
         if not stats or "state: Disconnected" in stats:

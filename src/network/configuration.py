@@ -21,7 +21,7 @@ def set_dns_servers(service_name, dns_servers):
     """Sets the DNS servers for a network service."""
     if not dns_servers:
         # Don't set anything - let DHCP handle DNS
-        logger.info(
+        logger.debug(
             f"No DNS servers configured for '{service_name}', leaving DHCP in control"
         )
         return
@@ -50,7 +50,7 @@ def set_search_domains(service_name, domains):
         logger.info(f"Clearing search domains for '{service_name}'")
     else:
         domains_list = [str(d) for d in domains]
-        logger.info(f"Setting {len(domains_list)} search domains for '{service_name}'")
+        logger.debug(f"Setting {len(domains_list)} search domains for '{service_name}'")
         logger.debug(f"Search domains for '{service_name}': {domains_list}")
 
     try:
@@ -69,7 +69,7 @@ def set_search_domains(service_name, domains):
 def set_proxy(service_name, url=None):
     """Set proxy configuration for a network service."""
     if not url:
-        logger.info(f"Disabling all proxies for '{service_name}'")
+        logger.debug(f"Disabling all proxies for '{service_name}'")
         _disable_all_proxies(service_name)
         run_command(
             [
@@ -227,7 +227,7 @@ def set_ntp_server(ntp_server):
         ["sudo", "/usr/bin/sntp", "-t", "3", "-sS", ntp_server], capture=True
     )
     if sntp_result:
-        logger.info("Time synchronization completed successfully")
+        logger.debug("Time synchronization completed successfully")
     else:
         # If direct sync fails, the system will still use the configured NTP server
         # for automatic synchronization when network allows it

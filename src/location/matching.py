@@ -23,7 +23,7 @@ def find_matching_location(
     if vpn_active is None:
         vpn_active = is_vpn_active()
 
-    logger.log(log_level, f"Location matching: VPN={vpn_active}, SSID={current_ssid}")
+    logger.debug(f"Location matching: VPN={vpn_active}, SSID={current_ssid}")
 
     locations = config_data.get("locations", {})
 
@@ -74,7 +74,7 @@ def _find_ssid_location(locations, ssid, log_level=20):  # INFO level
     """Find location matching current SSID."""
     for name, settings in locations.items():
         if name != "default" and ssid in settings.get("ssids", []):
-            logger.log(log_level, f"SSID match - selected '{name}' for SSID '{ssid}'")
+            logger.debug(f"SSID match - selected '{name}' for SSID '{ssid}'")
             return name
     return None
 

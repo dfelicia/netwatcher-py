@@ -16,6 +16,7 @@ from . import VPN_INTERFACE_PREFIX
 from ..logging_config import get_logger
 from ..utils import run_command, get_dns_info_native
 from .interfaces import get_default_route_interface
+from .cache import cache_network_function
 
 # Get module logger
 logger = get_logger(__name__)
@@ -58,6 +59,7 @@ def get_active_resolver_block(interface_name):
     return None
 
 
+@cache_network_function("dns_servers")
 def get_current_dns_servers(interface_name, log_level=20):  # INFO level
     """Get current DNS servers for a specific interface."""
     if not interface_name:
@@ -73,13 +75,14 @@ def get_current_dns_servers(interface_name, log_level=20):  # INFO level
         servers.append(match.group(1))
 
     if servers:
-        logger.log(log_level, f"Found DNS servers for '{interface_name}': {servers}")
+        logger.debug(f"DNS servers for '{interface_name}': {servers}")
     else:
-        logger.log(log_level, f"No DNS servers found for '{interface_name}'")
+        logger.debug(f"No DNS servers found for '{interface_name}'")
 
     return servers
 
 
+@cache_network_function("search_domains")
 def get_current_search_domains(interface_name, log_level=20):  # INFO level
     """Get current DNS search domains for a specific interface."""
     if not interface_name:
@@ -96,18 +99,18 @@ def get_current_search_domains(interface_name, log_level=20):  # INFO level
 
     if domains:
         if len(domains) == 1:
-            logger.log(log_level, f"Found domain '{domains[0]}' for '{interface_name}'")
+            logger.debug(f"DNS domain for '{interface_name}': '{domains[0]}'")
         else:
-            logger.log(
-                log_level,
-                f"Found domain '{domains[0]}' and {len(domains) - 1} more for '{interface_name}'",
+            logger.debug(
+                f"DNS domain for '{interface_name}': '{domains[0]}' and {len(domains) - 1} more",
             )
     else:
-        logger.log(log_level, f"No search domains found for '{interface_name}'")
+        logger.debug(f"No search domains found for '{interface_name}'")
 
     return domains
 
 
+@cache_network_function("ssid")
 def get_current_ssid(log_level=20):  # INFO level
     """Gets the SSID of the current Wi-Fi network using CoreWLAN."""
     if not CoreWLAN:
@@ -123,9 +126,10 @@ def get_current_ssid(log_level=20):  # INFO level
     return None
 
 
+@cache_network_function("vpn_active")
 def is_vpn_active(log_level=20):  # INFO level
     """Check if VPN is active by examining the default route interface."""
-    logger.log(log_level, "Checking for active VPN connection")
+    logger.debug("Checking for active VPN connection")
 
     try:
         default_interface = get_default_route_interface()
@@ -135,10 +139,10 @@ def is_vpn_active(log_level=20):  # INFO level
             return False
 
         if default_interface.startswith(VPN_INTERFACE_PREFIX):
-            logger.log(log_level, f"VPN detected: default route on {default_interface}")
+            logger.debug(f"VPN detected: default route on {default_interface}")
             return True
         else:
-            logger.log(log_level, f"No VPN: default route on {default_interface}")
+            logger.debug(f"No VPN: default route on {default_interface}")
             return False
 
     except Exception as e:
@@ -146,6 +150,7 @@ def is_vpn_active(log_level=20):  # INFO level
         return False
 
 
+@cache_network_function("primary_service")
 def get_primary_service_interface(log_level=20):  # INFO level
     """Get the primary network service and interface information."""
     from .interfaces import (
@@ -180,14 +185,12 @@ def get_primary_service_interface(log_level=20):  # INFO level
         if interface.startswith(VPN_INTERFACE_PREFIX):
             underlying_service = find_configurable_service()
             if underlying_service:
-                logger.log(
-                    log_level,
+                logger.debug(
                     f"VPN detected, using underlying service: {underlying_service}",
                 )
                 return underlying_service, interface, service_id
 
-        logger.log(
-            log_level,
+        logger.debug(
             f"Primary service: {service_name} (ID: {service_id}, interface: {interface})",
         )
         return service_name, interface, service_id

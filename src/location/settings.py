@@ -95,16 +95,16 @@ def check_and_apply_location_settings(
         return "Unknown", False, None
 
     service_name, interface, service_id = network_info
-    logger.log(log_level, f"Primary service: {service_name} ({interface})")
+    logger.debug(f"Primary interface: {service_name} ({interface})")
 
     # Get network details for location matching
     current_ssid = get_current_ssid(log_level=log_level)
     current_dns_servers = get_current_dns_servers(interface, log_level=log_level)
     current_search_domains = get_current_search_domains(interface, log_level=log_level)
 
-    logger.log(log_level, f"Current SSID: {current_ssid}")
-    logger.log(log_level, f"DNS servers: {current_dns_servers}")
-    logger.log(log_level, f"Search domains: {len(current_search_domains)} found")
+    logger.log(log_level, f"SSID: {current_ssid}")
+    logger.debug(f"DNS servers: {current_dns_servers}")
+    logger.debug(f"Search domains: {len(current_search_domains)} found")
 
     # Check VPN status once
     vpn_active = is_vpn_active(log_level=log_level)
@@ -127,8 +127,8 @@ def check_and_apply_location_settings(
     )
 
     available_locations = list(cfg.get("locations", {}).keys())
-    logger.log(log_level, f"Available locations: {available_locations}")
-    logger.log(log_level, f"Checking if '{location_name}' in available locations")
+    logger.debug(f"Available locations: {available_locations}")
+    logger.debug(f"Checking if '{location_name}' in available locations")
 
     if location_name in cfg.get("locations", {}):
         if apply:
@@ -138,7 +138,7 @@ def check_and_apply_location_settings(
 
             active_services = get_all_active_services()
             for serv_name, iface in active_services:
-                logger.log(log_level, f"Applying to {serv_name} ({iface})")
+                logger.debug(f"Applying to {serv_name} ({iface})")
                 skip_dns = vpn_active
                 apply_location_settings(
                     location_config,
