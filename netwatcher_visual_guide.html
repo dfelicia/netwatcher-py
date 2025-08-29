@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NetWatcher - How It Works</title>
+    <title>NetWatcher - Code Architecture & Flow Guide</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -14,92 +14,111 @@
             color: #333;
         }
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             background: white;
             border-radius: 15px;
-            padding: 30px;
+            padding: 40px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
         }
         h1 {
             text-align: center;
             color: #2c3e50;
-            margin-bottom: 30px;
-            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-size: 2.8em;
+        }
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 40px;
+            font-size: 1.3em;
+            font-style: italic;
+        }
+        .intro {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 40px;
+            border-left: 5px solid #3498db;
+        }
+        .intro h2 {
+            margin-top: 0;
+            color: #2c3e50;
         }
         .flow-container {
             display: flex;
             flex-direction: column;
             gap: 30px;
-            margin: 30px 0;
+            margin: 40px 0;
         }
         .step {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            border-left: 5px solid #3498db;
-            transition: transform 0.3s ease;
+            padding: 25px;
+            border-radius: 12px;
+            border-left: 6px solid #3498db;
+            transition: all 0.3s ease;
+            position: relative;
         }
         .step:hover {
             transform: translateX(10px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
         }
         .step-number {
             background: #3498db;
             color: white;
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            margin-right: 20px;
+            font-size: 1.3em;
+            margin-right: 25px;
             flex-shrink: 0;
         }
         .step-content {
             flex: 1;
         }
         .step-title {
-            font-size: 1.3em;
+            font-size: 1.4em;
             font-weight: bold;
             color: #2c3e50;
             margin-bottom: 8px;
         }
         .step-description {
-            color: #7f8c8d;
-            margin-bottom: 10px;
+            font-size: 1.1em;
+            color: #34495e;
+            margin-bottom: 12px;
         }
         .step-details {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+        .code-snippet {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Consolas', monospace;
             font-size: 0.9em;
-            color: #95a5a6;
+            margin: 10px 0;
+            overflow-x: auto;
+            white-space: pre;
         }
-        .components-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin: 30px 0;
-        }
-        .component {
-            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            transition: transform 0.3s ease;
-        }
-        .component:hover {
-            transform: translateY(-5px);
-        }
-        .component h3 {
-            margin-top: 0;
-            font-size: 1.2em;
-        }
-        .component p {
+        .file-path {
+            background: #e8f5e8;
+            color: #27ae60;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
             font-size: 0.9em;
-            opacity: 0.9;
         }
         .arrow {
             text-align: center;
@@ -107,216 +126,410 @@
             color: #3498db;
             margin: 10px 0;
         }
-        .decision {
-            background: #fff3cd;
-            border-left-color: #ffc107;
-            position: relative;
-        }
-        .decision::before {
-            content: "?";
-            position: absolute;
-            left: -15px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: #ffc107;
-            color: white;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-        }
-        .settings-grid {
+        .three-paths {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin: 30px 0;
         }
-        .setting-item {
-            background: #e8f5e8;
+        .path {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-top: 4px solid #e74c3c;
+            text-align: center;
+        }
+        .path.main {
+            border-top-color: #27ae60;
+        }
+        .path.test {
+            border-top-color: #f39c12;
+        }
+        .helper-modules {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .module {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #9b59b6;
+        }
+        .complete-flow {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin: 40px 0;
+        }
+        .complete-flow h2 {
+            color: white;
+            margin-top: 0;
+        }
+        .flow-step {
+            background: rgba(255,255,255,0.1);
             padding: 15px;
             border-radius: 8px;
-            border-left: 4px solid #27ae60;
+            margin: 10px 0;
+            backdrop-filter: blur(10px);
         }
-        .setting-item h4 {
-            margin: 0 0 8px 0;
+        .benefits {
+            background: #e8f5e8;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 30px 0;
+        }
+        .benefits h2 {
             color: #27ae60;
+            margin-top: 0;
         }
-        .setting-item p {
-            margin: 0;
-            font-size: 0.9em;
-            color: #2c3e50;
+        @media (max-width: 768px) {
+            .three-paths {
+                grid-template-columns: 1fr;
+            }
+            .helper-modules {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🌐 NetWatcher - How It Works</h1>
+        <h1>🕸️ NetWatcher</h1>
+        <div class="subtitle">Code Architecture & Flow Guide</div>
 
-        <div style="text-align: center; margin-bottom: 40px;">
-            <p style="font-size: 1.2em; color: #7f8c8d;">
-                A macOS menu bar app that automatically configures your network settings based on your location
-            </p>
+        <div class="intro">
+            <h2>📖 Introduction</h2>
+            <p><strong>NetWatcher</strong> is a macOS network automation tool that automatically reconfigures your system settings when your network environment changes. This guide walks through exactly how the code works, step-by-step, perfect for developers who want to understand the architecture.</p>
+            <p><strong>Think of it like a recipe:</strong> We'll follow the program from its entry point through every function call, showing you how each piece connects to create the complete automation system.</p>
         </div>
 
-        <h2>🏗️ Core Components</h2>
-        <div class="components-grid">
-            <div class="component">
-                <h3>🖥️ Menu Bar App</h3>
-                <p>Lives in your menu bar, shows current network status and allows manual testing</p>
-            </div>
-            <div class="component">
-                <h3>🔍 Network Monitor</h3>
-                <p>Watches for network changes using macOS SystemConfiguration framework</p>
-            </div>
-            <div class="component">
-                <h3>📍 Location Matcher</h3>
-                <p>Determines if you're at home, work, or elsewhere based on network signals</p>
-            </div>
-            <div class="component">
-                <h3>⚙️ Settings Applier</h3>
-                <p>Automatically configures DNS, proxy, printer, and time server settings</p>
-            </div>
-        </div>
-
-        <h2>🔄 How It Works (Step by Step)</h2>
+        <h2>🚀 Step 1: How the Program Starts</h2>
         <div class="flow-container">
             <div class="step">
                 <div class="step-number">1</div>
                 <div class="step-content">
-                    <div class="step-title">🚀 App Starts</div>
-                    <div class="step-description">NetWatcher launches and appears in your menu bar</div>
-                    <div class="step-details">Loads configuration from ~/.config/netwatcher/config.toml</div>
+                    <div class="step-title">Entry Point: <span class="file-path">src/cli.py</span></div>
+                    <div class="step-description">When you type <code>netwatcher</code> in terminal, Python calls the main() function</div>
+                    <div class="step-details">
+                        <strong>What happens here:</strong><br>
+                        1. <strong>Parses commands</strong> - Figures out what you want to do (start, stop, test, etc.)<br>
+                        2. <strong>Sets up logging</strong> - Decides how much detail to show you<br>
+                        3. <strong>Routes to the right action</strong> - Sends you to the correct part of the program
+                        <div class="code-snippet">
+def main():
+    """Main entry point for the NetWatcher CLI."""
+    # This is where everything starts!
+    cli()  # Processes command line arguments
+                        </div>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <div class="arrow">⬇️</div>
+        <h2>🎯 Step 2: The Three Main Paths</h2>
+        <p>From the CLI, the program can go down three main paths:</p>
 
-            <div class="step">
-                <div class="step-number">2</div>
-                <div class="step-content">
-                    <div class="step-title">👁️ Network Monitoring Begins</div>
-                    <div class="step-description">Sets up real-time monitoring for network changes</div>
-                    <div class="step-details">Uses macOS SystemConfiguration to detect when network settings change</div>
+        <div class="three-paths">
+            <div class="path main">
+                <h3>🍎 Path A: Menu Bar App</h3>
+                <p><code>netwatcher start</code></p>
+                <div class="code-snippet">
+# Goes to src/watcher.py
+watcher = NetWatcherApp()
+watcher.run()
                 </div>
+                <p><strong>Main use case</strong> - Runs continuously in menu bar</p>
             </div>
 
-            <div class="arrow">⬇️</div>
+            <div class="path test">
+                <h3>🧪 Path B: Quick Test</h3>
+                <p><code>netwatcher test</code></p>
+                <div class="code-snippet">
+# Stays in cli.py but calls core logic
+check_and_apply_location_settings(
+    config, apply=True
+)
+                </div>
+                <p><strong>Testing</strong> - One-time execution</p>
+            </div>
 
+            <div class="path">
+                <h3>⚙️ Path C: Utilities</h3>
+                <p><code>netwatcher stop/status</code></p>
+                <div class="code-snippet">
+# Simple utility functions
+service_control_commands()
+                </div>
+                <p><strong>Management</strong> - Start/stop/status</p>
+            </div>
+        </div>
+
+        <p><strong>Let's follow Path A (Menu Bar App)</strong> since that's the main use case:</p>
+
+        <h2>🍎 Step 3: The Menu Bar App (<span class="file-path">src/watcher.py</span>)</h2>
+        <div class="flow-container">
             <div class="step">
                 <div class="step-number">3</div>
                 <div class="step-content">
-                    <div class="step-title">📡 Network Change Detected</div>
-                    <div class="step-description">Something changed: WiFi connection, VPN status, etc.</div>
-                    <div class="step-details">Triggers after a short delay to avoid rapid-fire changes</div>
+                    <div class="step-title">Creating the Menu Bar Icon</div>
+                    <div class="step-description">NetWatcherApp class creates a little icon in your Mac's menu bar</div>
+                    <div class="step-details">
+                        <strong>Think of this like a security guard</strong> - it sits quietly in the menu bar, watching for network changes.
+                        <div class="code-snippet">
+class NetWatcherApp(rumps.App):
+    def __init__(self):
+        super().__init__("NetWatcher")  # Creates menu bar icon
+        self.config = config.load_config()  # Reads your settings
+        self._setup_network_watcher()  # Starts listening
+                        </div>
+                        <strong>The Network Watcher Setup:</strong><br>
+                        Uses macOS SystemConfiguration framework to monitor network state changes. This tells macOS: "Hey, whenever the network changes (WiFi connects, VPN turns on, etc.), please call my function!"
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <div class="arrow">⬇️</div>
-
+        <h2>🔔 Step 4: When Network Changes</h2>
+        <div class="flow-container">
             <div class="step">
                 <div class="step-number">4</div>
                 <div class="step-content">
-                    <div class="step-title">🔍 Analyze Current Network</div>
-                    <div class="step-description">Gathers information about your current network environment</div>
+                    <div class="step-title">Network Change Callback</div>
+                    <div class="step-description">When your network changes, macOS automatically calls this function</div>
                     <div class="step-details">
-                        • WiFi SSID (network name)<br>
-                        • DNS servers and search domains<br>
-                        • VPN connection status<br>
-                        • External IP address and ISP
+                        <div class="code-snippet">
+def network_changed(self, store, changed_keys, info):
+    """Called by macOS when network configuration changes."""
+    # Don't react immediately - wait a bit (debounce)
+    self._schedule_evaluation()
+                        </div>
+                        <strong>Why wait?</strong> Network changes often happen in bursts (like when connecting to WiFi). The program waits a few seconds to let everything settle before reacting.
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="arrow">⬇️</div>
-
-            <div class="step decision">
+        <h2>⏰ Step 5: The Debounced Evaluation</h2>
+        <div class="flow-container">
+            <div class="step">
                 <div class="step-number">5</div>
                 <div class="step-content">
-                    <div class="step-title">🤔 Determine Location</div>
-                    <div class="step-description">Smart logic to figure out where you are</div>
+                    <div class="step-title">Main Coordination Function</div>
+                    <div class="step-description">After waiting, it calls the main evaluation function</div>
                     <div class="step-details">
-                        <strong>Priority Order:</strong><br>
-                        1. VPN connected? → Use VPN location<br>
-                        2. Recognize WiFi name? → Use WiFi location<br>
-                        3. Recognize domain? → Use domain location<br>
-                        4. Corporate network hints? → Use work location<br>
-                        5. Default to [location.default] from config
+                        This function is like the "brain" - it coordinates everything else.
+                        <div class="code-snippet">
+def evaluate_network_state(self):
+    """Main function that figures out what to do."""
+    # Step 5a: Clear cache (start fresh)
+    clear_network_cache()
+
+    # Step 5b: Call the core logic
+    check_and_apply_location_settings(self.config, apply=True)
+
+    # Step 5c: Clear cache again (cleanup)
+    clear_network_cache()
+                        </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="arrow">⬇️</div>
-
+        <h2>🧠 Step 6: The Core Logic (<span class="file-path">src/location/settings.py</span>)</h2>
+        <div class="flow-container">
             <div class="step">
                 <div class="step-number">6</div>
                 <div class="step-content">
-                    <div class="step-title">⚙️ Apply Settings</div>
-                    <div class="step-description">Automatically configures system settings for the detected location</div>
-                    <div class="settings-grid">
-                        <div class="setting-item">
-                            <h4>🌐 DNS Servers</h4>
-                            <p>Set custom DNS (e.g., 8.8.8.8 for home, corporate DNS for work)</p>
+                    <div class="step-title">Main Decision-Making Function</div>
+                    <div class="step-description">check_and_apply_location_settings() - The main 'brain' function</div>
+                    <div class="step-details">
+                        <strong>Step 6a: Gather Information (Detective Work)</strong>
+                        <div class="code-snippet">
+# What network interface are we using?
+service_name, interface = get_primary_service_interface()
+
+# What WiFi network are we on?
+ssid = get_current_ssid()
+
+# What DNS servers are we using?
+dns_servers = get_current_dns_servers()
+
+# Are we on VPN?
+vpn_active = is_vpn_active()
                         </div>
-                        <div class="setting-item">
-                            <h4>🔄 Proxy Settings</h4>
-                            <p>Configure HTTP/HTTPS/SOCKS proxies or PAC files</p>
-                        </div>
-                        <div class="setting-item">
-                            <h4>🖨️ Default Printer</h4>
-                            <p>Set the right printer for your location</p>
-                        </div>
-                        <div class="setting-item">
-                            <h4>⏰ Time Server</h4>
-                            <p>Configure NTP server for accurate time sync</p>
-                        </div>
+                        <strong>Step 6b: Figure Out Location</strong><br>
+                        Goes to <span class="file-path">src/location/matching.py</span> with rules like:<br>
+                        • "If VPN is on, you're at 'Office-VPN'"<br>
+                        • "If WiFi is 'HomeWiFi', you're at 'Home'"
+                        <br><br>
+                        <strong>Step 6c: Apply Settings</strong><br>
+                        Now configure the computer for this location
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="arrow">⬇️</div>
-
+        <h2>⚙️ Step 7: Applying Settings</h2>
+        <div class="flow-container">
             <div class="step">
                 <div class="step-number">7</div>
                 <div class="step-content">
-                    <div class="step-title">📱 Update Menu Display</div>
-                    <div class="step-description">Shows current location and connection info in menu bar</div>
+                    <div class="step-title">apply_location_settings Function</div>
+                    <div class="step-description">This function actually changes your computer's settings</div>
                     <div class="step-details">
-                        Displays: Location name, VPN status, IP address, ISP information
+                        <div class="code-snippet">
+def apply_location_settings(location_config, service_name, interface_name):
+    # Set DNS servers
+    if 'dns_servers' in location_config:
+        set_dns_servers(dns_servers, service_name)
+
+    # Set proxy settings
+    if 'proxy' in location_config:
+        set_proxy(proxy_url, service_name)
+
+    # Set default printer
+    if 'default_printer' in location_config:
+        set_default_printer(printer_name)
+
+    # Set time server
+    if 'ntp_server' in location_config:
+        set_ntp_server(ntp_server)
+                        </div>
+                        Each of these calls goes to <span class="file-path">src/network/configuration.py</span> which runs actual system commands.
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="arrow">⬇️</div>
-
+        <h2>🔧 Step 8: The System Commands (<span class="file-path">src/network/configuration.py</span>)</h2>
+        <div class="flow-container">
             <div class="step">
                 <div class="step-number">8</div>
                 <div class="step-content">
-                    <div class="step-title">🔄 Wait for Next Change</div>
-                    <div class="step-description">Process repeats whenever your network changes</div>
-                    <div class="step-details">Continues monitoring in the background, ready for the next network change</div>
+                    <div class="step-title">Where the Rubber Meets the Road</div>
+                    <div class="step-description">This literally runs Mac terminal commands to change your network settings!</div>
+                    <div class="step-details">
+                        <strong>Example: Setting DNS Servers</strong>
+                        <div class="code-snippet">
+def set_dns_servers(dns_servers, service_name):
+    """Actually change the DNS servers on your Mac."""
+    # Build command: networksetup -setdnsservers "Wi-Fi" 8.8.8.8 8.8.4.4
+    cmd = ["networksetup", "-setdnsservers", service_name] + dns_servers
+    run_command(cmd)  # Execute the command
+                        </div>
+                        This is the actual system integration - changing macOS network configuration through official command-line tools.
+                    </div>
                 </div>
             </div>
         </div>
 
-        <h2>💡 Key Benefits</h2>
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 30px 0;">
-            <ul style="font-size: 1.1em; line-height: 2;">
-                <li><strong>🤖 Automatic:</strong> No manual network configuration needed</li>
-                <li><strong>⚡ Fast:</strong> Settings apply within seconds of network change</li>
-                <li><strong>🎯 Smart:</strong> Recognizes your locations intelligently</li>
-                <li><strong>🔧 Configurable:</strong> Easy setup through interactive wizard</li>
-                <li><strong>🍎 Native:</strong> Built for macOS using system frameworks</li>
-            </ul>
+        <h2>🚀 Step 9: Helper Modules</h2>
+        <p>The program uses several specialized helper modules:</p>
+
+        <div class="helper-modules">
+            <div class="module">
+                <h3>🔍 Network Detection</h3>
+                <p><span class="file-path">src/network/detection.py</span></p>
+                <p><strong>What it does:</strong> Figures out your current network state</p>
+                <p><strong>Example:</strong> "What WiFi am I connected to?" → calls <code>get_current_ssid()</code></p>
+            </div>
+
+            <div class="module">
+                <h3>💾 Network Caching</h3>
+                <p><span class="file-path">src/network/cache.py</span></p>
+                <p><strong>What it does:</strong> Remembers answers to avoid asking the same question twice</p>
+                <p><strong>Example:</strong> If we checked "Am I on VPN?" 5 seconds ago, use that answer</p>
+            </div>
+
+            <div class="module">
+                <h3>⚙️ Configuration</h3>
+                <p><span class="file-path">src/config.py</span></p>
+                <p><strong>What it does:</strong> Reads your settings from config file</p>
+                <p><strong>Example:</strong> Knows "Home" location should use DNS server "192.168.1.1"</p>
+            </div>
+
+            <div class="module">
+                <h3>🔌 External Tools</h3>
+                <p><span class="file-path">src/external/</span></p>
+                <p><strong>What it does:</strong> Talks to other programs (like Cisco VPN client)</p>
+                <p><strong>Example:</strong> Asks VPN software "Are you connected?"</p>
+            </div>
         </div>
 
-        <div style="text-align: center; margin-top: 40px; padding: 20px; background: #e8f5e8; border-radius: 10px;">
+        <div class="complete-flow">
+            <h2>🔄 The Complete Flow</h2>
+            <p>Here's the complete journey from start to finish:</p>
+
+            <div class="flow-step">
+                <strong>1. You connect to WiFi</strong> → macOS notices the network change
+            </div>
+            <div class="flow-step">
+                <strong>2. macOS tells NetWatcher</strong> → <code>network_changed()</code> function is called
+            </div>
+            <div class="flow-step">
+                <strong>3. NetWatcher waits</strong> → Debounce timer (5 seconds) to let things settle
+            </div>
+            <div class="flow-step">
+                <strong>4. NetWatcher investigates</strong> → "What network am I on? VPN? DNS servers?"
+            </div>
+            <div class="flow-step">
+                <strong>5. NetWatcher decides</strong> → "This looks like 'Home' location"
+            </div>
+            <div class="flow-step">
+                <strong>6. NetWatcher configures</strong> → Changes DNS, proxy, printer, time server
+            </div>
+            <div class="flow-step">
+                <strong>7. NetWatcher reports</strong> → Logs what it did, updates menu bar
+            </div>
+            <div class="flow-step">
+                <strong>8. NetWatcher waits</strong> → Ready for the next network change
+            </div>
+        </div>
+
+        <h2>🎛️ Configuration File Example</h2>
+        <div class="step-details">
+            All the rules are stored in <span class="file-path">~/.config/netwatcher/config.toml</span>:
+            <div class="code-snippet">
+[locations.work]
+ssids = ["YourWorkSSID"]
+dns_search_domains = ["corp.example.com"]
+dns_servers = ["10.1.1.10", "10.1.1.11"]  # Corporate DNS servers
+proxy_url = "http://proxy.example.com:8080/proxy.pac"
+printer = "Work_Printer_Name"
+ntp_server = "time.corp.example.com"
+
+[locations.home]
+ssids = ["YourHomeSSID"]
+dns_search_domains = ["home.arpa"]
+dns_servers = []  # Use DHCP-provided DNS servers
+proxy_url = ""
+printer = "Home_Printer_Name"
+ntp_server = "time.apple.com"
+            </div>
+            This tells NetWatcher: "When you see this situation, apply these settings."
+        </div>
+
+        <div class="benefits">
+            <h2>💡 Key Python Concepts Used</h2>
+            <p>Even though this is complex, it uses pretty basic Python concepts:</p>
+            <ul>
+                <li><strong>Functions</strong> - Small pieces that do one job</li>
+                <li><strong>Classes</strong> - <code>NetWatcherApp</code> bundles related functions together</li>
+                <li><strong>Imports</strong> - <code>from ..network import get_current_ssid</code> brings in functions from other files</li>
+                <li><strong>Dictionaries</strong> - Configuration stored as <code>{"dns_servers": ["8.8.8.8"]}</code></li>
+                <li><strong>Decorators</strong> - <code>@cache_network_function</code> automatically adds caching to functions</li>
+            </ul>
+            <p><strong>The complexity comes from coordination</strong> - making sure all these pieces work together smoothly, not from advanced Python features.</p>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px; padding: 25px; background: #e8f5e8; border-radius: 10px;">
             <h3 style="color: #27ae60; margin-top: 0;">🎉 Result</h3>
-            <p style="font-size: 1.1em; margin-bottom: 0;">
+            <p style="font-size: 1.2em; margin-bottom: 0;">
                 Your Mac automatically adapts to every network environment - home, office, coffee shop -
-                without you lifting a finger!
+                through this elegant orchestration of Python modules, macOS system calls, and intelligent decision-making logic.
             </p>
         </div>
     </div>
