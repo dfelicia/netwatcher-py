@@ -1279,6 +1279,9 @@ def setup(config_file):
             )
             return
 
+        # Reload config after ensuring options are set up
+        cfg = config.load_config()
+
         if not cfg.get("settings", {}).get("shell_proxy_enabled", True):
             click.echo("Shell proxy integration is disabled in configuration.")
             click.echo("To enable: set shell_proxy_enabled = true in config.toml")

@@ -68,14 +68,6 @@ def set_search_domains(service_name, domains):
 
 def set_proxy(service_name, url=None):
     """Set proxy configuration for a network service."""
-    # First handle shell proxy configuration
-    try:
-        from .shell_proxy import update_shell_proxy_configuration
-
-        update_shell_proxy_configuration(url or "")
-    except Exception as e:
-        logger.warning(f"Failed to update shell proxy configuration: {e}")
-
     if not url:
         logger.debug(f"Disabling all proxies for '{service_name}'")
         _disable_all_proxies(service_name)

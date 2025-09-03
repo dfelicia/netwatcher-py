@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 
 def parse_pac_file_for_generic_url(
-    pac_url: str, test_url: str = "http://www.example.com"
+    pac_url: str, test_url: str = "http://effinthing.com"
 ) -> Optional[str]:
     """
     Parse a PAC file and extract proxy configuration for a generic URL.
@@ -56,7 +56,7 @@ def parse_pac_file_for_generic_url(
             pacparser.parse_pac_string(pac_content)
 
             # Find proxy for the test URL
-            proxy_result = pacparser.find_proxy(test_url, "www.example.com")
+            proxy_result = pacparser.find_proxy(test_url, "effinthing.com")
 
             logger.debug(f"PAC result for {test_url}: {proxy_result}")
 
