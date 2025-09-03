@@ -168,9 +168,6 @@ Shell integration is automatically applied when network locations change, provid
 If you have NetWatcher 0.1.0 or earlier installed, you **must** force reinstall due to significant internal changes in version 0.2.0, including a new centralized logging system:
 
 ```bash
-# Stop the service if running
-netwatcher service stop 2>/dev/null || true
-
 # Navigate to your NetWatcher directory
 cd /path/to/netwatcher-py
 
@@ -179,6 +176,9 @@ git pull origin main
 
 # Activate your virtual environment
 source .venv/bin/activate
+
+# Stop the service if running (ok if it fails - might not be running)
+netwatcher service stop || echo "Service was not running or already stopped"
 
 # Force reinstall with the new version
 pip install --force-reinstall --editable .
