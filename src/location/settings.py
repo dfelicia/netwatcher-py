@@ -158,7 +158,8 @@ def check_and_apply_location_settings(
 
             # Shell proxy configuration
             try:
-                update_shell_proxy_configuration(proxy_url)
+                dns_search_domains = location_config.get("dns_search_domains", [])
+                update_shell_proxy_configuration(proxy_url, dns_search_domains)
             except Exception as e:
                 logger.warning(f"Failed to update shell proxy configuration: {e}")
     else:

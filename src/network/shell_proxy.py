@@ -93,12 +93,15 @@ def get_shell_bypass_domains() -> str:
     return ",".join(all_bypasses)
 
 
-def parse_proxy_config(proxy_url: str) -> Optional[Dict[str, str]]:
+def parse_proxy_config(
+    proxy_url: str, additional_bypass_domains: Optional[List[str]] = None
+) -> Optional[Dict[str, str]]:
     """
     Parse proxy configuration from proxy_url.
 
     Args:
         proxy_url: Proxy URL from config (can be PAC file, direct proxy, or empty)
+        additional_bypass_domains: Additional domains to add to no_proxy list (e.g., DNS search domains)
 
     Returns:
         Dictionary with proxy configuration or None if no proxy
@@ -137,7 +140,21 @@ def parse_proxy_config(proxy_url: str) -> Optional[Dict[str, str]]:
         # Fallback: strip protocol
         rsync_proxy = proxy_url.replace("http://", "").replace("https://", "")
 
-    bypass_domains = get_shell_bypass_domains()
+    # Build bypass domains list
+    standard_bypasses = get_shell_bypass_domains().split(",")
+    all_bypasses = standard_bypasses.copy()
+
+    # Add additional bypass domains (e.g., DNS search domains from location config)
+    if additional_bypass_domains:
+        added_domains = []
+        for domain in additional_bypass_domains:
+            if domain and domain not in all_bypasses:
+                all_bypasses.append(domain)
+                added_domains.append(domain)
+        if added_domains:
+            logger.debug(f"Added DNS search domains to no_proxy: {added_domains}")
+
+    bypass_domains = ",".join(all_bypasses)
 
     return {
         "http_proxy": proxy_url,
@@ -589,10 +606,12 @@ def cleanup_shell_proxy_files():
             logger.warning(f"Failed to remove {proxy_file}: {e}")
 
 
-def update_shell_proxy_configuration(proxy_url: str):
-    """Update shell proxy configuration based on proxy URL."""
+def update_shell_proxy_configuration(
+    proxy_url: str, dns_search_domains: Optional[List[str]] = None
+):
+    """Update shell proxy configuration based on proxy URL and DNS search domains."""
     try:
-        proxy_config = parse_proxy_config(proxy_url)
+        proxy_config = parse_proxy_config(proxy_url, dns_search_domains)
         write_all_shell_proxy_files(proxy_config)
 
         if proxy_config:
