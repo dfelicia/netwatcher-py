@@ -4,6 +4,10 @@
 debug = false
 # How many seconds to wait for the network to be stable before applying settings
 debounce_seconds = 5
+# Enable automatic shell proxy configuration for terminal applications
+shell_proxy_enabled = true
+# Specific shells to configure (optional, defaults to all detected shells)
+# shell_proxy_shells = ["bash", "zsh", "fish"]
 
 # Location Definitions
 # --------------------

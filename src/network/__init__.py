@@ -36,6 +36,14 @@ from .configuration import (
     set_ntp_server,
 )
 
+from .shell_proxy import (
+    setup_all_shell_integrations,
+    remove_all_shell_integrations,
+    update_shell_proxy_configuration,
+    cleanup_shell_proxy_files,
+    detect_user_shells,
+)
+
 from .cache import clear_cache
 
 __all__ = [
@@ -55,4 +63,11 @@ __all__ = [
     "set_proxy",
     "set_default_printer",
     "set_ntp_server",
+    "clear_cache",
+    # Shell proxy functions
+    "setup_all_shell_integrations",
+    "remove_all_shell_integrations",
+    "update_shell_proxy_configuration",
+    "cleanup_shell_proxy_files",
+    "detect_user_shells",
 ]

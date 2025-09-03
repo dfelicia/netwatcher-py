@@ -12,6 +12,7 @@ dependencies = [
     "toml",
     "click",
     "netifaces",
+    "pacparser",
 ]
 
 [project.scripts]

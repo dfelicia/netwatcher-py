@@ -1304,5 +1304,156 @@ def uninstall():
         click.echo(f"An error occurred during uninstallation: {e}", err=True)
 
 
+@cli.command()
+@click.option(
+    "--config-file",
+    default=None,
+    help="Path to configuration file (default: ~/.config/netwatcher/config.toml)",
+)
+def setup_shell_proxy(config_file):
+    """Set up shell proxy integration for detected shells."""
+    try:
+        from .network import setup_all_shell_integrations, detect_user_shells
+
+        # Load config to check if shell proxy is enabled
+        if config_file:
+            click.echo(f"Custom config file not supported yet: {config_file}")
+            click.echo("Using default config location")
+
+        cfg = config.load_config()
+
+        if not cfg.get("settings", {}).get("shell_proxy_enabled", True):
+            click.echo("Shell proxy integration is disabled in configuration.")
+            click.echo("To enable: set shell_proxy_enabled = true in config.toml")
+            return
+
+        detected_shells, primary_shell = detect_user_shells()
+        click.echo(f"Detected shells: {', '.join(detected_shells)}")
+        click.echo(f"Primary shell: {primary_shell}")
+
+        if setup_all_shell_integrations(cfg):
+            click.echo(
+                click.style(
+                    "✅ Shell proxy integration set up successfully", fg="green"
+                )
+            )
+            click.echo("\nShell proxy integration will:")
+            click.echo("• Automatically configure proxy variables for terminal apps")
+            click.echo("• Parse PAC/WPAD files when needed")
+            click.echo("• Apply settings based on your current location")
+            click.echo("• Clean up proxy settings when switching locations")
+            click.echo("\nRestart your shell or open a new terminal to apply changes.")
+        else:
+            click.echo(
+                click.style("❌ Failed to set up shell proxy integration", fg="red")
+            )
+
+    except Exception as e:
+        click.echo(f"Error setting up shell proxy integration: {e}", err=True)
+
+
+@cli.command()
+def remove_shell_proxy():
+    """Remove shell proxy integration from all shells."""
+    try:
+        from .network import (
+            remove_all_shell_integrations,
+            cleanup_shell_proxy_files,
+            detect_user_shells,
+        )
+
+        detected_shells, _ = detect_user_shells()
+        click.echo(
+            f"Removing NetWatcher proxy integration from: {', '.join(detected_shells)}"
+        )
+
+        remove_all_shell_integrations()
+        cleanup_shell_proxy_files()
+
+        click.echo(
+            click.style("✅ Shell proxy integration removed successfully", fg="green")
+        )
+        click.echo(
+            "Restart your shell or open a new terminal for changes to take effect."
+        )
+
+    except Exception as e:
+        click.echo(f"Error removing shell proxy integration: {e}", err=True)
+
+
+@cli.command()
+@click.option(
+    "--config-file",
+    default=None,
+    help="Path to configuration file (default: ~/.config/netwatcher/config.toml)",
+)
+def shell_proxy_status(config_file):
+    """Show shell proxy integration status."""
+    try:
+        from .network import detect_user_shells
+        from pathlib import Path
+
+        # Load config
+        if config_file:
+            click.echo(f"Custom config file not supported yet: {config_file}")
+            click.echo("Using default config location")
+
+        cfg = config.load_config()
+
+        detected_shells, primary_shell = detect_user_shells()
+        click.echo(f"Detected shells: {', '.join(detected_shells)}")
+        click.echo(f"Primary shell: {primary_shell}")
+
+        # Check configuration
+        shell_proxy_enabled = cfg.get("settings", {}).get("shell_proxy_enabled", True)
+        configured_shells = cfg.get("settings", {}).get(
+            "shell_proxy_shells", detected_shells
+        )
+
+        click.echo(f"\nConfiguration:")
+        click.echo(f"• shell_proxy_enabled: {shell_proxy_enabled}")
+        click.echo(f"• shell_proxy_shells: {configured_shells}")
+
+        # Check integration status
+        click.echo(f"\nIntegration Status:")
+        home = Path.home()
+        shell_configs = {
+            "bash": home / ".bash_profile",
+            "zsh": home / ".zshrc",
+            "tcsh": home / ".tcshrc",
+            "csh": home / ".cshrc",
+            "fish": home / ".config/fish/config.fish",
+        }
+
+        for shell in detected_shells:
+            config_file = shell_configs.get(shell)
+            if config_file and config_file.exists():
+                content = config_file.read_text()
+                if "NetWatcher proxy configuration" in content:
+                    click.echo(f"• {shell}: ✅ Integrated")
+                else:
+                    click.echo(f"• {shell}: ❌ Not integrated")
+            else:
+                click.echo(f"• {shell}: ❓ Config file not found")
+
+        # Check proxy environment files
+        click.echo(f"\nProxy Environment Files:")
+        cache_dir = Path.home() / ".config/netwatcher"
+        proxy_files = {
+            "bash/zsh": cache_dir / "proxy.env.sh",
+            "tcsh/csh": cache_dir / "proxy.env.csh",
+            "fish": cache_dir / "proxy.env.fish",
+        }
+
+        for name, proxy_file in proxy_files.items():
+            if proxy_file.exists():
+                click.echo(f"• {name}: ✅ {proxy_file}")
+            else:
+                click.echo(f"• {name}: ❌ Not found")
+
+    except Exception as e:
+        click.echo(f"Error checking shell proxy status: {e}", err=True)
+
+
 if __name__ == "__main__":
     cli()

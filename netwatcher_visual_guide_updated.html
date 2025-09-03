@@ -110,7 +110,6 @@
             font-size: 0.9em;
             margin: 10px 0;
             overflow-x: auto;
-            white-space: pre;
         }
         .file-path {
             background: #e8f5e8;
@@ -363,7 +362,7 @@ vpn_active = is_vpn_active()
                         <strong>Step 6b: Figure Out Location</strong><br>
                         Goes to <span class="file-path">src/location/matching.py</span> with rules like:<br>
                         • "If VPN is on, you're at 'Office-VPN'"<br>
-                        • "If WiFi is 'HomeWiFi', you're at 'Home'"
+                        • "If WiFi is 'You kids get off my LAN', you're at 'Home'"
                         <br><br>
                         <strong>Step 6c: Apply Settings</strong><br>
                         Now configure the computer for this location
@@ -404,61 +403,7 @@ def apply_location_settings(location_config, service_name, interface_name):
             </div>
         </div>
 
-        <h2>� Step 7b: Shell Proxy Configuration (<span class="file-path">src/network/shell_proxy.py</span>)</h2>
-        <div class="flow-container">
-            <div class="step">
-                <div class="step-number">7b</div>
-                <div class="step-content">
-                    <div class="step-title">Terminal Application Proxy Setup</div>
-                    <div class="step-description">NetWatcher also configures proxy settings for terminal applications like curl, pip, npm, etc.</div>
-                    <div class="step-details">
-                        <strong>What happens:</strong>
-                        <div class="code-snippet">
-def update_shell_proxy_configuration(proxy_url):
-    # 1. Parse PAC/WPAD files if needed
-    if proxy_url.endswith('.pac'):
-        actual_proxy = parse_pac_file_for_generic_url(proxy_url)
-
-    # 2. Generate shell environment files
-    write_bash_proxy_env(proxy_config)    # For bash/zsh
-    write_csh_proxy_env(proxy_config)     # For tcsh/csh
-    write_fish_proxy_env(proxy_config)    # For fish shell
-
-    # Files created:
-    # ~/.config/netwatcher/proxy.env.sh    (bash/zsh)
-    # ~/.config/netwatcher/proxy.env.csh   (tcsh/csh)
-    # ~/.config/netwatcher/proxy.env.fish  (fish)
-                        </div>
-                        <strong>Key Benefits:</strong>
-                        <ul>
-                            <li><strong>No slow startup:</strong> Unlike manual scripts that call curl on every shell startup, NetWatcher generates proxy files once when the network changes</li>
-                            <li><strong>Multi-shell support:</strong> Works with bash, zsh, tcsh/csh, and fish shells</li>
-                            <li><strong>PAC file parsing:</strong> Automatically extracts actual proxy servers from corporate PAC/WPAD files</li>
-                            <li><strong>Smart cleanup:</strong> Proxy settings are removed when switching to locations without proxies</li>
-                        </ul>
-                        <strong>Environment Variables Set:</strong>
-                        <div class="code-snippet">
-# Standard proxy variables
-export http_proxy="http://proxy.company.com:8080"
-export https_proxy="http://proxy.company.com:8080"
-export all_proxy="http://proxy.company.com:8080"
-
-# Legacy uppercase versions (compatibility)
-export HTTP_PROXY="http://proxy.company.com:8080"
-export HTTPS_PROXY="http://proxy.company.com:8080"
-
-# Special case: rsync expects host:port only
-export rsync_proxy="proxy.company.com:8080"
-
-# Bypass addresses (including domains from /etc/resolver)
-export no_proxy="localhost,127.0.0.1,*.company.com"
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <h2>�🔧 Step 8: The System Commands (<span class="file-path">src/network/configuration.py</span>)</h2>
+        <h2>🔧 Step 8: The System Commands (<span class="file-path">src/network/configuration.py</span>)</h2>
         <div class="flow-container">
             <div class="step">
                 <div class="step-number">8</div>
@@ -502,7 +447,7 @@ def set_dns_servers(dns_servers, service_name):
                 <h3>⚙️ Configuration</h3>
                 <p><span class="file-path">src/config.py</span></p>
                 <p><strong>What it does:</strong> Reads your settings from config file</p>
-                <p><strong>Example:</strong> Knows "Home" location should use DNS server "192.168.1.1"</p>
+                <p><strong>Example:</strong> Knows "Home" location should use DNS server "10.0.1.1"</p>
             </div>
 
             <div class="module">
@@ -524,7 +469,7 @@ def set_dns_servers(dns_servers, service_name):
                 <strong>2. macOS tells NetWatcher</strong> → <code>network_changed()</code> function is called
             </div>
             <div class="flow-step">
-                <strong>3. NetWatcher waits</strong> → Debounce timer (5 seconds) to let things settle
+                <strong>3. NetWatcher waits</strong> → Debounce timer (3 seconds) to let things settle
             </div>
             <div class="flow-step">
                 <strong>4. NetWatcher investigates</strong> → "What network am I on? VPN? DNS servers?"
@@ -547,21 +492,17 @@ def set_dns_servers(dns_servers, service_name):
         <div class="step-details">
             All the rules are stored in <span class="file-path">~/.config/netwatcher/config.toml</span>:
             <div class="code-snippet">
-[locations.work]
-ssids = ["YourWorkSSID"]
-dns_search_domains = ["corp.example.com"]
-dns_servers = ["10.1.1.10", "10.1.1.11"]  # Corporate DNS servers
-proxy_url = "http://proxy.example.com:8080/proxy.pac"
-printer = "Work_Printer_Name"
-ntp_server = "time.corp.example.com"
+[locations.Home]
+ssid_patterns = ["You kids get off my LAN.*"]
+dns_servers = []  # Use DHCP
+proxy = "none"
+default_printer = "Laser_Printer"
 
-[locations.home]
-ssids = ["YourHomeSSID"]
-dns_search_domains = ["home.arpa"]
-dns_servers = []  # Use DHCP-provided DNS servers
-proxy_url = ""
-printer = "Home_Printer_Name"
-ntp_server = "time.apple.com"
+[locations.Office-VPN]
+vpn_active = true
+dns_servers = ["206.223.27.1", "206.223.27.2"]
+proxy = "http://wpad-prod.oraclecorp.com/wpad.dat"
+ntp_server = "10.75.20.11"
             </div>
             This tells NetWatcher: "When you see this situation, apply these settings."
         </div>

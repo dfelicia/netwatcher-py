@@ -21,6 +21,7 @@ from ..network import (
     set_ntp_server,
     get_all_active_services,
     get_default_route_interface,
+    update_shell_proxy_configuration,
 )
 from ..external import get_vpn_details
 from ..utils import run_command
@@ -154,6 +155,12 @@ def check_and_apply_location_settings(
                 set_default_printer(location_config["printer"])
             if "ntp_server" in location_config and location_config["ntp_server"]:
                 set_ntp_server(location_config["ntp_server"])
+
+            # Shell proxy configuration
+            try:
+                update_shell_proxy_configuration(proxy_url)
+            except Exception as e:
+                logger.warning(f"Failed to update shell proxy configuration: {e}")
     else:
         logger.warning(f"Location '{location_name}' not found in config")
         return "Unknown", vpn_active, vpn_details

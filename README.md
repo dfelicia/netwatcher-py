@@ -21,6 +21,7 @@ NetWatcher is built with Python and uses native macOS frameworks for reliable, e
 - **Automatic network configuration** including multi-interface support and dynamic /etc/resolver for VPN search domains:
   - DNS servers and search domains
   - Proxy settings (PAC/WPAD files, HTTP/HTTPS/SOCKS proxies) with advanced parsing via pacparser for precise detection
+  - **Shell proxy configuration** - Automatic proxy setup for terminal applications (bash, zsh, tcsh/csh, fish)
   - Default printer selection
   - Network Time Protocol (NTP) server configuration
 - **VPN detection and status display** (configurable for various VPN clients)
@@ -107,6 +108,58 @@ netwatcher service install
 ```
 
 The application will start automatically and you'll see the NetWatcher icon in your menu bar. You can monitor its activity in the log file at `~/Library/Logs/netwatcher.log`.
+
+### Step 6: Set Up Shell Proxy Integration (Optional)
+
+NetWatcher can automatically configure proxy environment variables for terminal applications, eliminating the need to manually set proxy variables or run slow scripts in your shell startup files.
+
+#### Enable Shell Proxy Support
+
+```bash
+# Set up shell proxy integration for all detected shells
+netwatcher setup-shell-proxy
+
+# Check the status of shell proxy integration
+netwatcher shell-proxy-status
+
+# Remove shell proxy integration if needed
+netwatcher remove-shell-proxy
+```
+
+#### How It Works
+
+Shell proxy integration provides:
+
+- **Automatic proxy configuration** for terminal applications (`curl`, `wget`, `pip`, `npm`, `brew`, etc.)
+- **PAC/WPAD file parsing** to extract actual proxy servers automatically
+- **Multi-shell support** for bash, zsh, tcsh/csh, and fish shells
+- **Smart bypass domains** including standard localhost addresses and domains managed by NetWatcher
+- **Interactive-only activation** - proxy settings only apply to interactive shell sessions
+- **Location-aware cleanup** - proxy settings are automatically removed when switching to locations without proxies
+
+#### Supported Environment Variables
+
+NetWatcher sets all standard proxy environment variables:
+
+- `http_proxy`, `https_proxy`, `ftp_proxy`, `all_proxy` - Standard proxy variables
+- `HTTP_PROXY`, `HTTPS_PROXY`, `FTP_PROXY`, `ALL_PROXY` - Legacy uppercase versions
+- `rsync_proxy` - Special format for rsync (host:port without protocol)
+- `no_proxy`, `NO_PROXY` - Bypass addresses for local and corporate domains
+
+#### Configuration
+
+Shell proxy support can be configured in your `config.toml`:
+
+```toml
+[settings]
+# Enable/disable shell proxy integration
+shell_proxy_enabled = true
+
+# Optional: specify which shells to configure (defaults to all detected)
+shell_proxy_shells = ["bash", "zsh", "fish"]
+```
+
+Shell integration is automatically applied when network locations change, providing seamless proxy management for both GUI and terminal applications.
 
 ## Upgrading NetWatcher
 
