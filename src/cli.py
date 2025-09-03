@@ -326,7 +326,14 @@ def get_available_printers():
 # --- CLI Commands ---
 
 
-@click.group()
+class OrderedGroup(click.Group):
+    """Custom Click group that preserves command order."""
+
+    def list_commands(self, ctx):
+        return list(self.commands.keys())
+
+
+@click.group(cls=OrderedGroup)
 def cli():
     """
     NetWatcher - Automatic network configuration management for macOS.
@@ -336,104 +343,6 @@ def cli():
     printer based on your current Wi-Fi network or other network characteristics.
     """
     pass
-
-
-@cli.command()
-def check():
-    """
-    Check if passwordless sudo is configured for network commands.
-
-    NetWatcher requires passwordless sudo access to run networksetup, systemsetup,
-    lpadmin, and sntp commands that modify DNS, proxy, printer, and time settings.
-    This command verifies that sudo is properly configured without prompting for a password.
-
-    If this check fails, you'll need to configure sudo privileges for your user.
-    """
-    click.echo("Checking sudo permissions for NetWatcher commands...")
-
-    # Commands that NetWatcher needs to run with sudo
-    required_commands = [
-        ("/usr/sbin/networksetup", ["-listallnetworkservices"]),
-        ("/usr/sbin/systemsetup", ["-getnetworktimeserver"]),
-        ("/usr/sbin/lpadmin", ["-h"]),  # Help option doesn't modify anything
-        ("/usr/bin/sntp", ["-h"]),  # Help option doesn't modify anything
-        ("/bin/mkdir", ["/etc/resolver"]),
-        ("/usr/bin/tee", ["/etc/resolver/netwatcher-test.tmp"]),
-        ("/bin/rm", ["-f", "/etc/resolver/netwatcher-test.tmp"]),
-        ("/usr/bin/dscacheutil", ["-flushcache"]),
-    ]
-
-    all_passed = True
-
-    for cmd_path, test_args in required_commands:
-        cmd_name = cmd_path.split("/")[-1]
-        click.echo(f"  Testing {cmd_name}...", nl=False)
-
-        input_content = None
-        if cmd_path == "/usr/bin/tee":
-            input_content = (
-                "# This is a test file created by NetWatcher check. Safe to remove.\n"
-            )
-
-        try:
-            result = subprocess.run(
-                ["sudo", "-n"] + [cmd_path] + test_args,
-                capture_output=True,
-                text=True,
-                timeout=config.IPINFO_TIMEOUT,  # Use consistent timeout
-                input=input_content,
-            )
-
-            # For most commands, return code 0 means success
-            # For lpadmin -h and sntp -h, they might return non-zero but that's OK if no password was required
-            if result.returncode == 0 or (
-                "a password is required" not in result.stderr.lower()
-                and "sudo:" not in result.stderr.lower()
-            ):
-                click.echo(click.style(" ✓", fg="green"))
-            else:
-                click.echo(click.style(" ✗", fg="red"))
-                if "a password is required" in result.stderr.lower():
-                    click.echo(f"    Error: {cmd_name} requires a password")
-                else:
-                    click.echo(f"    Error: {result.stderr.strip()}")
-                all_passed = False
-
-        except subprocess.TimeoutExpired:
-            click.echo(click.style(" ✗ (timeout)", fg="red"))
-            click.echo(
-                f"    Error: {cmd_name} check timed out (likely requires password)"
-            )
-            all_passed = False
-        except FileNotFoundError:
-            click.echo(click.style(" ✗ (not found)", fg="red"))
-            click.echo(f"    Error: {cmd_path} not found")
-            all_passed = False
-        except Exception as e:
-            click.echo(click.style(" ✗ (error)", fg="red"))
-            click.echo(f"    Error: {e}")
-            all_passed = False
-
-    click.echo()  # Blank line
-
-    if all_passed:
-        click.echo(
-            click.style("✓ All sudo permissions are correctly configured!", fg="green")
-        )
-        click.echo("NetWatcher should work without password prompts.")
-    else:
-        click.echo(click.style("✗ Sudo configuration needs to be updated.", fg="red"))
-        click.echo("\nTo fix this, add the following to your sudo configuration:")
-        click.echo("  1. Run: sudo visudo -f /etc/sudoers.d/$USER")
-        click.echo("  2. Add these lines:")
-        click.echo(
-            "     # Allow NetWatcher to run required network commands without a password"
-        )
-        click.echo(
-            "     Cmnd_Alias NETWATCHER_CMDS = /usr/sbin/networksetup, /usr/sbin/systemsetup, /usr/sbin/lpadmin, /usr/bin/sntp, /bin/mkdir /etc/resolver, /bin/rm /etc/resolver/*, /usr/bin/tee /etc/resolver/*, /usr/bin/dscacheutil -flushcache"
-        )
-        click.echo("     $USER ALL=(ALL) NOPASSWD: NETWATCHER_CMDS")
-        click.echo("\nSee the README for detailed setup instructions.")
 
 
 @cli.command()
@@ -623,21 +532,11 @@ def configure(location_name):
         location_cfg["ssids"] = fixed_ssids
 
     # --- Configure DNS Search Domains ---
-    # If domains are not set, suggest the current ones if available.
-    if not location_cfg.get("dns_search_domains") and current_settings.get(
-        "dns_search_domains"
-    ):
-        click.echo(
-            "\nCurrent DNS search domains detected: "
-            + ", ".join(current_settings["dns_search_domains"])
-        )
-        # Pre-select the detected domains for the user
-        location_cfg["dns_search_domains"] = current_settings["dns_search_domains"]
-
+    # --- Configure DNS Search Domains ---
     location_cfg["dns_search_domains"] = prompt_for_selection(
         "\n--- DNS Search Domains ---",
         items=current_settings.get("dns_search_domains", []),
-        selected_items=location_cfg.get("dns_search_domains", []),
+        selected_items=[],  # Never pre-select, always start fresh
         allow_multiple=True,
         manual_entry_label="domains",
     )
@@ -917,10 +816,25 @@ def configure(location_name):
         "Enter NTP Server", default=location_cfg.get("ntp_server", "time.apple.com")
     )
 
+    # --- Configure Shell Proxy Settings ---
+    click.echo(click.style("\n--- Shell Proxy Integration ---", bold=True))
+    click.echo(
+        "Shell proxy integration automatically configures proxy environment variables\n"
+        "for terminal applications when NetWatcher switches locations."
+    )
+
+    current_enabled = cfg.get("settings", {}).get("shell_proxy_enabled", True)
+    shell_proxy_enabled = ask_yes_no(
+        f"Enable shell proxy integration?", "y" if current_enabled else "n"
+    )
+
     # --- Save Configuration ---
     # Ensure the configuration always has the complete default structure
     if "settings" not in cfg:
         cfg["settings"] = config.DEFAULT_CONFIG["settings"].copy()
+
+    # Update shell proxy setting
+    cfg["settings"]["shell_proxy_enabled"] = shell_proxy_enabled
 
     if "locations" not in cfg:
         cfg["locations"] = {}
@@ -948,6 +862,13 @@ def configure(location_name):
                 fg="green",
             )
         )
+
+        # If shell proxy was enabled, inform user how to set it up
+        if shell_proxy_enabled:
+            click.echo(
+                "\nTo complete shell proxy setup, run: netwatcher shell-proxy setup"
+            )
+
     except Exception as e:
         click.echo(f"Error saving configuration file: {e}", err=True)
 
@@ -1304,16 +1225,45 @@ def uninstall():
         click.echo(f"An error occurred during uninstallation: {e}", err=True)
 
 
-@cli.command()
+# --- Shell Proxy Management Commands ---
+
+
+@cli.group()
+def shell_proxy():
+    """
+    Manage shell proxy integration for terminal applications.
+
+    Shell proxy integration automatically configures proxy environment variables
+    for terminal applications when NetWatcher switches between locations. Commands:
+
+    \b
+    • setup  - Set up shell proxy integration for detected shells
+    • remove - Remove shell proxy integration from all shells
+    • status - Show current shell proxy integration status
+
+    The integration works by:
+    • Adding source commands to your shell configuration files
+    • Creating proxy environment files when proxies are active
+    • Automatically parsing PAC/WPAD files when needed
+    • Cleaning up proxy settings when switching locations
+    """
+    pass
+
+
+@shell_proxy.command()
 @click.option(
     "--config-file",
     default=None,
     help="Path to configuration file (default: ~/.config/netwatcher/config.toml)",
 )
-def setup_shell_proxy(config_file):
+def setup(config_file):
     """Set up shell proxy integration for detected shells."""
     try:
-        from .network import setup_all_shell_integrations, detect_user_shells
+        from .network.shell_proxy import (
+            setup_all_shell_integrations,
+            detect_user_shells,
+            ensure_shell_proxy_config,
+        )
 
         # Load config to check if shell proxy is enabled
         if config_file:
@@ -1321,6 +1271,13 @@ def setup_shell_proxy(config_file):
             click.echo("Using default config location")
 
         cfg = config.load_config()
+
+        # Ensure config options are set up
+        if not ensure_shell_proxy_config():
+            click.echo(
+                click.style("❌ Failed to set up shell proxy configuration", fg="red")
+            )
+            return
 
         if not cfg.get("settings", {}).get("shell_proxy_enabled", True):
             click.echo("Shell proxy integration is disabled in configuration.")
@@ -1342,6 +1299,8 @@ def setup_shell_proxy(config_file):
             click.echo("• Parse PAC/WPAD files when needed")
             click.echo("• Apply settings based on your current location")
             click.echo("• Clean up proxy settings when switching locations")
+            click.echo("\nConfiguration added to ~/.config/netwatcher/config.toml")
+            click.echo("To disable: set shell_proxy_enabled = false in config.toml")
             click.echo("\nRestart your shell or open a new terminal to apply changes.")
         else:
             click.echo(
@@ -1352,11 +1311,11 @@ def setup_shell_proxy(config_file):
         click.echo(f"Error setting up shell proxy integration: {e}", err=True)
 
 
-@cli.command()
-def remove_shell_proxy():
+@shell_proxy.command()
+def remove():
     """Remove shell proxy integration from all shells."""
     try:
-        from .network import (
+        from .network.shell_proxy import (
             remove_all_shell_integrations,
             cleanup_shell_proxy_files,
             detect_user_shells,
@@ -1367,12 +1326,16 @@ def remove_shell_proxy():
             f"Removing NetWatcher proxy integration from: {', '.join(detected_shells)}"
         )
 
+        # This now automatically disables shell_proxy_enabled in config
         remove_all_shell_integrations()
         cleanup_shell_proxy_files()
 
         click.echo(
             click.style("✅ Shell proxy integration removed successfully", fg="green")
         )
+        click.echo("• Disabled shell_proxy_enabled in configuration")
+        click.echo("• Removed integration from shell config files")
+        click.echo("• Cleaned up proxy environment files")
         click.echo(
             "Restart your shell or open a new terminal for changes to take effect."
         )
@@ -1381,16 +1344,16 @@ def remove_shell_proxy():
         click.echo(f"Error removing shell proxy integration: {e}", err=True)
 
 
-@cli.command()
+@shell_proxy.command()
 @click.option(
     "--config-file",
     default=None,
     help="Path to configuration file (default: ~/.config/netwatcher/config.toml)",
 )
-def shell_proxy_status(config_file):
+def status(config_file):
     """Show shell proxy integration status."""
     try:
-        from .network import detect_user_shells
+        from .network.shell_proxy import detect_user_shells
         from pathlib import Path
 
         # Load config
@@ -1453,6 +1416,104 @@ def shell_proxy_status(config_file):
 
     except Exception as e:
         click.echo(f"Error checking shell proxy status: {e}", err=True)
+
+
+@cli.command()
+def check():
+    """
+    Check if passwordless sudo is configured for network commands.
+
+    NetWatcher requires passwordless sudo access to run networksetup, systemsetup,
+    lpadmin, and sntp commands that modify DNS, proxy, printer, and time settings.
+    This command verifies that sudo is properly configured without prompting for a password.
+
+    If this check fails, you'll need to configure sudo privileges for your user.
+    """
+    click.echo("Checking sudo permissions for NetWatcher commands...")
+
+    # Commands that NetWatcher needs to run with sudo
+    required_commands = [
+        ("/usr/sbin/networksetup", ["-listallnetworkservices"]),
+        ("/usr/sbin/systemsetup", ["-getnetworktimeserver"]),
+        ("/usr/sbin/lpadmin", ["-h"]),  # Help option doesn't modify anything
+        ("/usr/bin/sntp", ["-h"]),  # Help option doesn't modify anything
+        ("/bin/mkdir", ["/etc/resolver"]),
+        ("/usr/bin/tee", ["/etc/resolver/netwatcher-test.tmp"]),
+        ("/bin/rm", ["-f", "/etc/resolver/netwatcher-test.tmp"]),
+        ("/usr/bin/dscacheutil", ["-flushcache"]),
+    ]
+
+    all_passed = True
+
+    for cmd_path, test_args in required_commands:
+        cmd_name = cmd_path.split("/")[-1]
+        click.echo(f"  Testing {cmd_name}...", nl=False)
+
+        input_content = None
+        if cmd_path == "/usr/bin/tee":
+            input_content = (
+                "# This is a test file created by NetWatcher check. Safe to remove.\n"
+            )
+
+        try:
+            result = subprocess.run(
+                ["sudo", "-n"] + [cmd_path] + test_args,
+                capture_output=True,
+                text=True,
+                timeout=config.IPINFO_TIMEOUT,  # Use consistent timeout
+                input=input_content,
+            )
+
+            # For most commands, return code 0 means success
+            # For lpadmin -h and sntp -h, they might return non-zero but that's OK if no password was required
+            if result.returncode == 0 or (
+                "a password is required" not in result.stderr.lower()
+                and "sudo:" not in result.stderr.lower()
+            ):
+                click.echo(click.style(" ✓", fg="green"))
+            else:
+                click.echo(click.style(" ✗", fg="red"))
+                if "a password is required" in result.stderr.lower():
+                    click.echo(f"    Error: {cmd_name} requires a password")
+                else:
+                    click.echo(f"    Error: {result.stderr.strip()}")
+                all_passed = False
+
+        except subprocess.TimeoutExpired:
+            click.echo(click.style(" ✗ (timeout)", fg="red"))
+            click.echo(
+                f"    Error: {cmd_name} check timed out (likely requires password)"
+            )
+            all_passed = False
+        except FileNotFoundError:
+            click.echo(click.style(" ✗ (not found)", fg="red"))
+            click.echo(f"    Error: {cmd_path} not found")
+            all_passed = False
+        except Exception as e:
+            click.echo(click.style(" ✗ (error)", fg="red"))
+            click.echo(f"    Error: {e}")
+            all_passed = False
+
+    click.echo()  # Blank line
+
+    if all_passed:
+        click.echo(
+            click.style("✓ All sudo permissions are correctly configured!", fg="green")
+        )
+        click.echo("NetWatcher should work without password prompts.")
+    else:
+        click.echo(click.style("✗ Sudo configuration needs to be updated.", fg="red"))
+        click.echo("\nTo fix this, add the following to your sudo configuration:")
+        click.echo("  1. Run: sudo visudo -f /etc/sudoers.d/$USER")
+        click.echo("  2. Add these lines:")
+        click.echo(
+            "     # Allow NetWatcher to run required network commands without a password"
+        )
+        click.echo(
+            "     Cmnd_Alias NETWATCHER_CMDS = /usr/sbin/networksetup, /usr/sbin/systemsetup, /usr/sbin/lpadmin, /usr/bin/sntp, /bin/mkdir /etc/resolver, /bin/rm /etc/resolver/*, /usr/bin/tee /etc/resolver/*, /usr/bin/dscacheutil -flushcache"
+        )
+        click.echo("     $USER ALL=(ALL) NOPASSWD: NETWATCHER_CMDS")
+        click.echo("\nSee the README for detailed setup instructions.")
 
 
 if __name__ == "__main__":

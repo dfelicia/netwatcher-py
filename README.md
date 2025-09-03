@@ -97,6 +97,8 @@ Run the interactive configuration wizard to create your `config.toml` file:
 netwatcher configure
 ```
 
+The configuration wizard will guide you through setting up network locations and will offer to configure shell proxy integration for terminal applications.
+
 The configuration will be saved to `~/.config/netwatcher/config.toml`.
 
 ### Step 5: Install the Service
@@ -117,13 +119,13 @@ NetWatcher can automatically configure proxy environment variables for terminal 
 
 ```bash
 # Set up shell proxy integration for all detected shells
-netwatcher setup-shell-proxy
+netwatcher shell-proxy setup
 
 # Check the status of shell proxy integration
-netwatcher shell-proxy-status
+netwatcher shell-proxy status
 
 # Remove shell proxy integration if needed
-netwatcher remove-shell-proxy
+netwatcher shell-proxy remove
 ```
 
 #### How It Works
@@ -136,6 +138,8 @@ Shell proxy integration provides:
 - **Smart bypass domains** including standard localhost addresses and domains managed by NetWatcher
 - **Interactive-only activation** - proxy settings only apply to interactive shell sessions
 - **Location-aware cleanup** - proxy settings are automatically removed when switching to locations without proxies
+- **Automatic configuration management** - setup automatically adds configuration options, removal automatically disables the feature
+- **Efficient file management** - proxy files are deleted when not needed instead of writing unset commands
 
 #### Supported Environment Variables
 
@@ -209,12 +213,15 @@ NetWatcher provides a command-line interface for configuration and service manag
 
 - **Configure network locations**: `netwatcher configure`
 - **Test current network detection**: `netwatcher test` (use `--debug` for verbose output)
-- **Check system permissions**: `netwatcher check`
 - **Install the background service**: `netwatcher service install`
-- **Uninstall the background service**: `netwatcher service uninstall`
 - **Start the background service**: `netwatcher service start`
 - **Stop the background service**: `netwatcher service stop`
 - **Check service status**: `netwatcher service status`
+- **Uninstall the background service**: `netwatcher service uninstall`
+- **Set up shell proxy integration**: `netwatcher shell-proxy setup`
+- **Check shell proxy status**: `netwatcher shell-proxy status`
+- **Remove shell proxy integration**: `netwatcher shell-proxy remove`
+- **Check system permissions**: `netwatcher check`
 
 ## Using the Menu Bar App
 
