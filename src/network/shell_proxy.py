@@ -449,6 +449,12 @@ def ensure_shell_proxy_config():
             config_data["settings"]["shell_proxy_enabled"] = True
             settings_changed = True
             logger.info("Added shell_proxy_enabled = true to config")
+            logger.debug(
+                f"DEBUG: shell_proxy_enabled value type: {type(config_data['settings']['shell_proxy_enabled'])}"
+            )
+            logger.debug(
+                f"DEBUG: shell_proxy_enabled value: {repr(config_data['settings']['shell_proxy_enabled'])}"
+            )
 
         # Add shell_proxy_shells if missing (commented example)
         if "shell_proxy_shells" not in config_data["settings"]:
@@ -462,6 +468,13 @@ def ensure_shell_proxy_config():
             with open(config_path, "w") as f:
                 toml.dump(config_data, f)
             logger.info(f"Updated configuration file: {config_path}")
+
+            # DEBUG: Read back the file to verify what was written
+            with open(config_path, "r") as f:
+                verification_data = toml.load(f)
+            logger.debug(
+                f"DEBUG: Verification - shell_proxy_enabled after write: {verification_data.get('settings', {}).get('shell_proxy_enabled', 'NOT_FOUND')}"
+            )
 
         return True
 
@@ -513,11 +526,6 @@ def setup_all_shell_integrations(config: Dict) -> bool:
     if not config.get("settings", {}).get("shell_proxy_enabled", True):
         logger.info("Shell proxy integration disabled in config")
         return True
-
-    # First, ensure config options are present
-    if not ensure_shell_proxy_config():
-        logger.error("Failed to ensure shell proxy configuration")
-        return False
 
     detected_shells, primary_shell = detect_user_shells()
     configured_shells = config.get("settings", {}).get(
