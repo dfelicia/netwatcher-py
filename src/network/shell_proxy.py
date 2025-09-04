@@ -319,31 +319,31 @@ def get_shell_integration_block(shell_name: str) -> Optional[str]:
     integrations = {
         "bash": """# NetWatcher proxy configuration - Auto-generated, will be overwritten
 # To disable: set shell_proxy_enabled = false in ~/.config/netwatcher/config.toml
-if [[ "${-}" =~ i ]] && [[ -f ~/.config/netwatcher/proxy.env.sh ]]; then
+if [[ -f ~/.config/netwatcher/proxy.env.sh ]]; then
     source ~/.config/netwatcher/proxy.env.sh
 fi
 # End NetWatcher proxy configuration""",
         "zsh": """# NetWatcher proxy configuration - Auto-generated, will be overwritten
 # To disable: set shell_proxy_enabled = false in ~/.config/netwatcher/config.toml
-if [[ -o interactive ]] && [[ -f ~/.config/netwatcher/proxy.env.sh ]]; then
+if [[ -f ~/.config/netwatcher/proxy.env.sh ]]; then
     source ~/.config/netwatcher/proxy.env.sh
 fi
 # End NetWatcher proxy configuration""",
         "tcsh": """# NetWatcher proxy configuration - Auto-generated, will be overwritten
 # To disable: set shell_proxy_enabled = false in ~/.config/netwatcher/config.toml
-if ($?prompt && -f ~/.config/netwatcher/proxy.env.csh) then
+if (-f ~/.config/netwatcher/proxy.env.csh) then
     source ~/.config/netwatcher/proxy.env.csh
 endif
 # End NetWatcher proxy configuration""",
         "csh": """# NetWatcher proxy configuration - Auto-generated, will be overwritten
 # To disable: set shell_proxy_enabled = false in ~/.config/netwatcher/config.toml
-if ($?prompt && -f ~/.config/netwatcher/proxy.env.csh) then
+if (-f ~/.config/netwatcher/proxy.env.csh) then
     source ~/.config/netwatcher/proxy.env.csh
 endif
 # End NetWatcher proxy configuration""",
         "fish": """# NetWatcher proxy configuration - Auto-generated, will be overwritten
 # To disable: set shell_proxy_enabled = false in ~/.config/netwatcher/config.toml
-if status is-interactive; and test -f ~/.config/netwatcher/proxy.env.fish
+if test -f ~/.config/netwatcher/proxy.env.fish
     source ~/.config/netwatcher/proxy.env.fish
 end
 # End NetWatcher proxy configuration""",
@@ -462,7 +462,9 @@ def ensure_shell_proxy_config():
             logger.debug(
                 f"DEBUG: shell_proxy_enabled value type: {type(config_data['settings']['shell_proxy_enabled'])}"
             )
-            logger.debug(f"DEBUG: shell_proxy_enabled value: {repr(config_data['settings']['shell_proxy_enabled'])}")
+            logger.debug(
+                f"DEBUG: shell_proxy_enabled value: {repr(config_data['settings']['shell_proxy_enabled'])}"
+            )
 
         # Add shell_proxy_shells if missing (commented example)
         if "shell_proxy_shells" not in config_data["settings"]:
@@ -536,7 +538,9 @@ def setup_all_shell_integrations(config: Dict) -> bool:
         return True
 
     detected_shells, primary_shell = detect_user_shells()
-    configured_shells = config.get("settings", {}).get("shell_proxy_shells", detected_shells)
+    configured_shells = config.get("settings", {}).get(
+        "shell_proxy_shells", detected_shells
+    )
 
     # Only configure shells that are both detected and requested
     shells_to_configure = [s for s in detected_shells if s in configured_shells]
@@ -595,14 +599,18 @@ def cleanup_shell_proxy_files():
             logger.warning(f"Failed to remove {proxy_file}: {e}")
 
 
-def update_shell_proxy_configuration(proxy_url: str, dns_search_domains: Optional[List[str]] = None):
+def update_shell_proxy_configuration(
+    proxy_url: str, dns_search_domains: Optional[List[str]] = None
+):
     """Update shell proxy configuration based on proxy URL and DNS search domains."""
     try:
         proxy_config = parse_proxy_config(proxy_url, dns_search_domains)
         write_all_shell_proxy_files(proxy_config)
 
         if proxy_config:
-            logger.info(f"Updated shell proxy configuration: {proxy_config['http_proxy']}")
+            logger.info(
+                f"Updated shell proxy configuration: {proxy_config['http_proxy']}"
+            )
         else:
             logger.info("Disabled shell proxy configuration")
 
