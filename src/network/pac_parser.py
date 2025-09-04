@@ -14,7 +14,9 @@ from ..logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def parse_pac_file_for_generic_url(pac_url: str, test_url: str = "http://effinthing.com") -> Optional[str]:
+def parse_pac_file_for_generic_url(
+    pac_url: str, test_url: str = "http://effinthing.com"
+) -> Optional[str]:
     """
     Parse a PAC file and extract proxy configuration for a generic URL.
 
@@ -28,14 +30,23 @@ def parse_pac_file_for_generic_url(pac_url: str, test_url: str = "http://effinth
     try:
         import pacparser
     except ImportError:
-        logger.error("pacparser module not available. Install with: pip install pacparser")
+        logger.error(
+            "pacparser module not available. Install with: pip install pacparser"
+        )
         return None
 
     try:
         # Download PAC file content
         logger.debug(f"Downloading PAC file from: {pac_url}")
 
-        with urllib.request.urlopen(pac_url, timeout=10) as response:
+        # Create a proxy handler that bypasses all proxies (equivalent to curl --noproxy '*')
+        # ProxyHandler({}) creates a handler with no proxy configuration, forcing direct connection
+        proxy_handler = urllib.request.ProxyHandler({})
+        opener = urllib.request.build_opener(proxy_handler)
+
+        # Use the opener to download the PAC file directly without any proxy
+        request = urllib.request.Request(pac_url)
+        with opener.open(request, timeout=10) as response:
             pac_content = response.read().decode("utf-8")
 
         if not pac_content.strip():
