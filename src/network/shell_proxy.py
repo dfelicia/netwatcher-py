@@ -181,18 +181,11 @@ export https_proxy="{proxy_config["https_proxy"]}"
 export ftp_proxy="{proxy_config["ftp_proxy"]}"
 export all_proxy="{proxy_config["all_proxy"]}"
 
-# Legacy uppercase versions
-export HTTP_PROXY="{proxy_config["http_proxy"]}"
-export HTTPS_PROXY="{proxy_config["https_proxy"]}"
-export FTP_PROXY="{proxy_config["ftp_proxy"]}"
-export ALL_PROXY="{proxy_config["all_proxy"]}"
-
 # Special case: rsync (no protocol)
 export rsync_proxy="{proxy_config["rsync_proxy"]}"
 
 # Bypass addresses
 export no_proxy="{proxy_config["no_proxy"]}"
-export NO_PROXY="{proxy_config["no_proxy"]}"
 """
         # Write atomically
         temp_file = cache_file.with_suffix(".tmp")

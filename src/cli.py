@@ -13,7 +13,15 @@ import objc
 import toml
 
 # Use relative imports to avoid module loading conflicts
-from . import actions, config
+from . import config
+from .network import (
+    get_current_ssid,
+    get_current_dns_servers,
+    get_current_search_domains,
+    get_primary_service_interface,
+)
+from .location import check_and_apply_location_settings
+from .utils import run_command
 
 
 def signal_handler(signum, frame):
@@ -159,7 +167,9 @@ def prompt_for_selection(
         click.echo("No items were automatically discovered.")
     else:
         if allow_multiple:
-            click.echo("Select by number, separated by commas (e.g., 1,3). Press Enter to keep current selection.")
+            click.echo(
+                "Select by number, separated by commas (e.g., 1,3). Press Enter to keep current selection."
+            )
         else:
             click.echo("Select one number. Press Enter to keep the current selection.")
 
@@ -167,7 +177,9 @@ def prompt_for_selection(
             is_selected = "x" if item in current_selection else " "
             click.echo(f" [{is_selected}] {i}: {item}")
 
-        default_indices = ",".join([str(i + 1) for i, s in enumerate(items) if s in current_selection])
+        default_indices = ",".join(
+            [str(i + 1) for i, s in enumerate(items) if s in current_selection]
+        )
 
         prompt_text = "Select by number" if allow_multiple else "Select one number"
 
@@ -177,17 +189,23 @@ def prompt_for_selection(
         else:
             prompt_text += " (or press Enter to skip)"
 
-        choice_str = click.prompt(prompt_text, default=default_indices, show_default=True)
+        choice_str = click.prompt(
+            prompt_text, default=default_indices, show_default=True
+        )
 
         # If user entered a new value, parse it. Otherwise, the selection remains as is.
         if choice_str != default_indices:
-            parsed_selection = _validate_selection_input(choice_str, items, allow_multiple)
+            parsed_selection = _validate_selection_input(
+                choice_str, items, allow_multiple
+            )
             if parsed_selection is not None:
                 current_selection = parsed_selection
 
     # Handle manual entry
     if show_manual_entry:
-        current_selection = _handle_manual_entry(current_selection, manual_entry_label, allow_multiple)
+        current_selection = _handle_manual_entry(
+            current_selection, manual_entry_label, allow_multiple
+        )
 
     return current_selection
 
@@ -198,7 +216,7 @@ def prompt_for_selection(
 def _check_python_signature():
     """Check if Python interpreter has ad-hoc signature that might prevent Wi-Fi scanning."""
     try:
-        codesign_output = actions.run_command(["codesign", "-dv", sys.executable], capture=True)
+        codesign_output = run_command(["codesign", "-dv", sys.executable], capture=True)
         if codesign_output and "flags=0x2(adhoc)" in codesign_output:
             click.echo(
                 click.style(
@@ -214,7 +232,9 @@ def _check_python_signature():
                     fg="yellow",
                 )
             )
-            click.echo(click.style("  /usr/bin/python3 -m venv <path_to_venv>", fg="yellow"))
+            click.echo(
+                click.style("  /usr/bin/python3 -m venv <path_to_venv>", fg="yellow")
+            )
     except Exception:
         # Ignore if codesign isn't available or fails.
         pass
@@ -233,7 +253,9 @@ def _request_location_authorization():
         status = manager.authorizationStatus()
 
         if status == kCLAuthorizationStatusNotDetermined:
-            click.echo("Requesting Location Services access to scan for Wi-Fi networks...")
+            click.echo(
+                "Requesting Location Services access to scan for Wi-Fi networks..."
+            )
             manager.requestWhenInUseAuthorization()
             # Poll for a few seconds for the user to respond to the dialog
             for _ in range(config.LOCATION_AUTH_POLL_COUNT):
@@ -280,7 +302,9 @@ def _perform_wifi_scan():
             if networks is not None:
                 break
             if error and "Busy" in str(error):
-                time.sleep(config.WIFI_SCAN_RETRY_DELAY_BASE * (i + 1))  # Exponential backoff
+                time.sleep(
+                    config.WIFI_SCAN_RETRY_DELAY_BASE * (i + 1)
+                )  # Exponential backoff
             else:
                 break  # A non-busy error occurred
 
@@ -314,10 +338,14 @@ def get_available_ssids():
 def get_available_printers():
     """Gets a list of available printer names."""
     try:
-        printers_raw = actions.run_command(["lpstat", "-p"], capture=True)
+        printers_raw = run_command(["lpstat", "-p"], capture=True)
         if printers_raw:
             # Use splitlines() to avoid issues with newline characters
-            return [line.split()[1] for line in printers_raw.splitlines() if line.startswith("printer")]
+            return [
+                line.split()[1]
+                for line in printers_raw.splitlines()
+                if line.startswith("printer")
+            ]
     except Exception:
         pass  # Fail silently
     return []
@@ -350,7 +378,9 @@ def cli():
 
 def _discover_current_network_settings():
     """Discover and return current network settings."""
-    primary_service, primary_interface, primary_service_id = actions.get_primary_service_interface()
+    primary_service, primary_interface, primary_service_id = (
+        get_primary_service_interface()
+    )
     if not primary_service:
         click.echo("Could not determine primary network service. Exiting.", err=True)
         return None
@@ -358,15 +388,17 @@ def _discover_current_network_settings():
     click.echo(f"Primary network service detected: {primary_service}")
 
     current_settings = {
-        "ssid": actions.get_current_ssid(),
-        "dns_servers": actions.get_current_dns_servers(primary_interface),
-        "dns_search_domains": actions.get_current_search_domains(primary_interface),
+        "ssid": get_current_ssid(),
+        "dns_servers": get_current_dns_servers(primary_interface),
+        "dns_search_domains": get_current_search_domains(primary_interface),
         "proxy_url": "",  # Default to empty
         "ntp_server": "time.apple.com",  # Default
     }
 
     # Get proxy URL
-    proxy_out = actions.run_command(["networksetup", "-getautoproxyurl", primary_service], capture=True)
+    proxy_out = run_command(
+        ["networksetup", "-getautoproxyurl", primary_service], capture=True
+    )
     if proxy_out and "No Auto Proxy URL is set" not in proxy_out:
         match = re.search(r"URL: (.*)", proxy_out)
         if match:
@@ -375,7 +407,7 @@ def _discover_current_network_settings():
                 current_settings["proxy_url"] = url_value
 
     # Get NTP server
-    ntp_out = actions.run_command(["systemsetup", "-getnetworktimeserver"], capture=True)
+    ntp_out = run_command(["systemsetup", "-getnetworktimeserver"], capture=True)
     if ntp_out and "is not currently set" not in ntp_out:
         match = re.search(r"Network Time Server: (.*)", ntp_out)
         if match:
@@ -387,11 +419,17 @@ def _discover_current_network_settings():
 def _get_location_name(cfg, location_name):
     """Get location name from user input or prompt."""
     if not location_name:
-        existing_locations = [loc for loc in cfg.get("locations", {}) if loc != "default"]
-        click.echo(click.style("\n--- Location Selection ---", bold=True, underline=True))
+        existing_locations = [
+            loc for loc in cfg.get("locations", {}) if loc != "default"
+        ]
+        click.echo(
+            click.style("\n--- Location Selection ---", bold=True, underline=True)
+        )
         if existing_locations:
             click.echo("Existing locations: " + ", ".join(existing_locations))
-        location_name = click.prompt("Enter the name for this new or existing location (e.g., 'Home', 'Office')")
+        location_name = click.prompt(
+            "Enter the name for this new or existing location (e.g., 'Home', 'Office')"
+        )
 
     if not location_name:
         click.echo("Error: Location name cannot be empty.", err=True)
@@ -417,36 +455,13 @@ def _configure_ssids(location_cfg, current_settings, available_ssids):
         ):
             location_cfg["ssids"] = [current_settings["ssid"]]
 
-    # Clean up any malformed SSIDs from previous config reads
-    existing_ssids = location_cfg.get("ssids", [])
-    clean_existing_ssids = []
-    for ssid in existing_ssids:
-        if isinstance(ssid, list):
-            clean_existing_ssids.append("".join(str(char) for char in ssid))
-        elif isinstance(ssid, str):
-            clean_existing_ssids.append(ssid)
-        else:
-            clean_existing_ssids.append(str(ssid))
-
     location_cfg["ssids"] = prompt_for_selection(
         "\n--- Wi-Fi Networks (SSIDs) ---",
         items=available_ssids,
-        selected_items=clean_existing_ssids,
+        selected_items=location_cfg.get("ssids", []),
         allow_multiple=True,
         manual_entry_label="SSIDs",
     )
-
-    # Ensure SSIDs are properly formatted as strings
-    if "ssids" in location_cfg and location_cfg["ssids"]:
-        fixed_ssids = []
-        for ssid in location_cfg["ssids"]:
-            if isinstance(ssid, list):
-                fixed_ssids.append("".join(str(char) for char in ssid))
-            elif isinstance(ssid, str):
-                fixed_ssids.append(ssid)
-            else:
-                fixed_ssids.append(str(ssid))
-        location_cfg["ssids"] = fixed_ssids
 
 
 def _configure_dns(location_cfg, current_settings):
@@ -462,12 +477,19 @@ def _configure_dns(location_cfg, current_settings):
 
     # Configure DNS Servers
     click.echo(click.style("\n--- DNS Servers ---", bold=True))
-    click.echo("By default, NetWatcher uses the DNS servers provided by your network (DHCP).")
+    click.echo(
+        "By default, NetWatcher uses the DNS servers provided by your network (DHCP)."
+    )
 
     if ask_yes_no("Do you want to specify custom DNS servers for this location?", "n"):
         if not location_cfg.get("dns_servers") and current_settings.get("dns_servers"):
-            click.echo("\nCurrent DNS servers detected: " + ", ".join(current_settings["dns_servers"]))
-            if ask_yes_no("Do you want to start with these DNS servers for this location?", "y"):
+            click.echo(
+                "\nCurrent DNS servers detected: "
+                + ", ".join(current_settings["dns_servers"])
+            )
+            if ask_yes_no(
+                "Do you want to start with these DNS servers for this location?", "y"
+            ):
                 location_cfg["dns_servers"] = current_settings["dns_servers"]
 
         location_cfg["dns_servers"] = prompt_for_selection(
@@ -487,13 +509,21 @@ def _configure_wpad_proxy():
     wpad_auto = ask_yes_no("\nTry to auto-detect WPAD URL (http://wpad/wpad.dat)?", "n")
 
     if not wpad_auto:
-        return click.prompt("Enter Auto Proxy Configuration URL", default="", show_default=False)
+        return click.prompt(
+            "Enter Auto Proxy Configuration URL", default="", show_default=False
+        )
 
-    click.echo("\n⚠️  WARNING: WPAD auto-discovery can be a security risk on untrusted networks.")
-    click.echo("   Malicious networks could intercept your traffic via a rogue WPAD server.")
+    click.echo(
+        "\n⚠️  WARNING: WPAD auto-discovery can be a security risk on untrusted networks."
+    )
+    click.echo(
+        "   Malicious networks could intercept your traffic via a rogue WPAD server."
+    )
 
     if not ask_yes_no("Continue with WPAD auto-detection?", "n"):
-        return click.prompt("Enter Auto Proxy Configuration URL", default="", show_default=False)
+        return click.prompt(
+            "Enter Auto Proxy Configuration URL", default="", show_default=False
+        )
 
     click.echo("Checking for WPAD auto-configuration...")
     wpad_url = "http://wpad/wpad.dat"
@@ -516,10 +546,14 @@ def _configure_wpad_proxy():
                     )
             else:
                 click.echo("✗ No valid WPAD configuration found")
-                return click.prompt("Enter Auto Proxy Configuration URL", default="", show_default=False)
+                return click.prompt(
+                    "Enter Auto Proxy Configuration URL", default="", show_default=False
+                )
     except Exception as e:
         click.echo(f"✗ Failed to fetch WPAD: {e}")
-        return click.prompt("Enter Auto Proxy Configuration URL", default="", show_default=False)
+        return click.prompt(
+            "Enter Auto Proxy Configuration URL", default="", show_default=False
+        )
 
 
 def _get_proxy_configuration():
@@ -530,7 +564,9 @@ def _get_proxy_configuration():
     click.echo("3. Manual SOCKS proxy")
     click.echo("4. No proxy")
 
-    proxy_choice = click.prompt("Choose proxy type", type=click.Choice(["1", "2", "3", "4"]), default="4")
+    proxy_choice = click.prompt(
+        "Choose proxy type", type=click.Choice(["1", "2", "3", "4"]), default="4"
+    )
 
     if proxy_choice == "1":
         click.echo("\nCommon PAC/WPAD URLs:")
@@ -541,12 +577,16 @@ def _get_proxy_configuration():
 
     elif proxy_choice == "2":
         proxy_host = click.prompt("Enter HTTP proxy hostname or IP")
-        proxy_port = click.prompt("Enter HTTP proxy port", type=int, default=config.DEFAULT_PROXY_PORT)
+        proxy_port = click.prompt(
+            "Enter HTTP proxy port", type=int, default=config.DEFAULT_PROXY_PORT
+        )
         return f"http://{proxy_host}:{proxy_port}"
 
     elif proxy_choice == "3":
         proxy_host = click.prompt("Enter SOCKS proxy hostname or IP")
-        proxy_port = click.prompt("Enter SOCKS proxy port", type=int, default=config.DEFAULT_SOCKS_PORT)
+        proxy_port = click.prompt(
+            "Enter SOCKS proxy port", type=int, default=config.DEFAULT_SOCKS_PORT
+        )
         return f"socks://{proxy_host}:{proxy_port}"
 
     else:
@@ -628,12 +668,16 @@ def _configure_shell_proxy(cfg):
     )
 
     current_enabled = cfg.get("settings", {}).get("shell_proxy_enabled", True)
-    shell_proxy_enabled = ask_yes_no("Enable shell proxy integration?", "y" if current_enabled else "n")
+    shell_proxy_enabled = ask_yes_no(
+        "Enable shell proxy integration?", "y" if current_enabled else "n"
+    )
 
     return shell_proxy_enabled
 
 
-def _save_configuration(cfg, location_name, location_cfg, shell_proxy_enabled, config_path):
+def _save_configuration(
+    cfg, location_name, location_cfg, shell_proxy_enabled, config_path
+):
     """Save the configuration to file."""
     # Ensure the configuration always has the complete default structure
     if "settings" not in cfg:
@@ -647,11 +691,9 @@ def _save_configuration(cfg, location_name, location_cfg, shell_proxy_enabled, c
 
     # Ensure the default location exists for fallback settings
     if "default" not in cfg["locations"]:
-        cfg["locations"]["default"] = config.DEFAULT_CONFIG["locations"]["default"].copy()
-
-    # Convert PyObjC NSString objects to Python strings (fixes TOML serialization)
-    if "ssids" in location_cfg:
-        location_cfg["ssids"] = [str(ssid) for ssid in location_cfg["ssids"]]
+        cfg["locations"]["default"] = config.DEFAULT_CONFIG["locations"][
+            "default"
+        ].copy()
 
     cfg["locations"][location_name] = location_cfg
 
@@ -667,7 +709,9 @@ def _save_configuration(cfg, location_name, location_cfg, shell_proxy_enabled, c
 
         # If shell proxy was enabled, inform user how to set it up
         if shell_proxy_enabled:
-            click.echo("\nTo complete shell proxy setup, run: netwatcher shell-proxy setup")
+            click.echo(
+                "\nTo complete shell proxy setup, run: netwatcher shell-proxy setup"
+            )
 
         return True
     except Exception as e:
@@ -709,17 +753,25 @@ def configure(location_name):
     config_path = config.get_config_path()
     cfg = config.load_config()
 
-    click.echo(click.style("--- NetWatcher Configuration Wizard ---", bold=True, underline=True))
+    click.echo(
+        click.style(
+            "--- NetWatcher Configuration Wizard ---", bold=True, underline=True
+        )
+    )
 
     if not config_path.exists():
-        click.echo(f"No configuration file found. A new one will be created at: \n{config_path}")
+        click.echo(
+            f"No configuration file found. A new one will be created at: \n{config_path}"
+        )
         if not ask_yes_no("Do you want to continue?", "y"):
             return
         config_path.parent.mkdir(parents=True, exist_ok=True)
     else:
         click.echo(f"Loaded existing configuration from:\n{config_path}")
 
-    click.echo("\nTip: For best results, run this wizard while connected to the network you wish to configure.")
+    click.echo(
+        "\nTip: For best results, run this wizard while connected to the network you wish to configure."
+    )
 
     # --- Discover Network Settings ---
     click.echo("\nDiscovering current network environment...")
@@ -736,7 +788,9 @@ def configure(location_name):
         return
 
     # --- Get or Create Location Config ---
-    location_cfg = copy.deepcopy(cfg.get("locations", {}).get(location_name, config.DEFAULT_LOCATION_CONFIG))
+    location_cfg = copy.deepcopy(
+        cfg.get("locations", {}).get(location_name, config.DEFAULT_LOCATION_CONFIG)
+    )
 
     click.echo(
         click.style(
@@ -755,7 +809,9 @@ def configure(location_name):
     shell_proxy_enabled = _configure_shell_proxy(cfg)
 
     # --- Save Configuration ---
-    _save_configuration(cfg, location_name, location_cfg, shell_proxy_enabled, config_path)
+    _save_configuration(
+        cfg, location_name, location_cfg, shell_proxy_enabled, config_path
+    )
 
 
 @cli.command()
@@ -813,7 +869,7 @@ def test(debug):
             )
             return
 
-        location_name, vpn_active, vpn_details = actions.check_and_apply_location_settings(cfg)
+        location_name, vpn_active, vpn_details = check_and_apply_location_settings(cfg)
 
         if location_name:
             click.echo(
@@ -899,7 +955,7 @@ def start():
         return
     click.echo("Starting NetWatcher service...")
     plist_path = config.LAUNCH_AGENT_PLIST_PATH
-    actions.run_command(["launchctl", "load", "-w", str(plist_path)])
+    run_command(["launchctl", "load", "-w", str(plist_path)])
     click.echo("Service started.")
 
 
@@ -917,7 +973,7 @@ def stop():
         return
     click.echo("Stopping NetWatcher service...")
     plist_path = config.LAUNCH_AGENT_PLIST_PATH
-    actions.run_command(["launchctl", "unload", "-w", str(plist_path)])
+    run_command(["launchctl", "unload", "-w", str(plist_path)])
     click.echo("Service stopped.")
 
 
@@ -934,7 +990,7 @@ def status():
         return
     click.echo("Checking service status...")
     label = config.LAUNCH_AGENT_LABEL
-    output = actions.run_command(["launchctl", "list"], capture=True)
+    output = run_command(["launchctl", "list"], capture=True)
     if output and label in output:
         # The output of `launchctl list` is complex. A simple string search is a good indicator.
         # A more robust check could parse the output line for the specific service.
@@ -944,7 +1000,9 @@ def status():
         try:
             # pgrep returns 0 if a process is found, 1 otherwise.
             # Look for the specific command pattern that matches our watcher
-            subprocess.run(["pgrep", "-f", "src.watcher"], check=True, capture_output=True)
+            subprocess.run(
+                ["pgrep", "-f", "src.watcher"], check=True, capture_output=True
+            )
             click.echo(click.style("Process is RUNNING.", fg="green"))
         except subprocess.CalledProcessError:
             click.echo(click.style("Process is STOPPED.", fg="yellow"))
@@ -988,18 +1046,26 @@ def install():
     command_to_run = [python_executable, "-c", "from src.watcher import main; main()"]
 
     try:
-        with importlib.resources.path("src", "com.user.netwatcher.plist") as template_path:
+        with importlib.resources.path(
+            "src", "com.user.netwatcher.plist"
+        ) as template_path:
             with open(template_path, "r") as f:
                 plist_template = f.read()
 
         # Replace placeholders
-        plist_content = plist_template.replace("{{PYTHON_EXECUTABLE}}", python_executable)
+        plist_content = plist_template.replace(
+            "{{PYTHON_EXECUTABLE}}", python_executable
+        )
         plist_content = plist_content.replace(
             "{{COMMAND_TO_RUN}}",
             " ".join(f"<string>{c}</string>" for c in command_to_run),
         )
-        plist_content = plist_content.replace("{{WORKING_DIRECTORY}}", str(project_root))
-        plist_content = plist_content.replace("{{LAUNCH_AGENT_LABEL}}", config.LAUNCH_AGENT_LABEL)
+        plist_content = plist_content.replace(
+            "{{WORKING_DIRECTORY}}", str(project_root)
+        )
+        plist_content = plist_content.replace(
+            "{{LAUNCH_AGENT_LABEL}}", config.LAUNCH_AGENT_LABEL
+        )
 
         with open(plist_path, "w") as f:
             f.write(plist_content)
@@ -1007,8 +1073,10 @@ def install():
         click.echo(f"Created launch agent plist at: {plist_path}")
 
         # Load the service
-        actions.run_command(["launchctl", "load", "-w", str(plist_path)])
-        click.echo(click.style("Service installed and started successfully.", fg="green"))
+        run_command(["launchctl", "load", "-w", str(plist_path)])
+        click.echo(
+            click.style("Service installed and started successfully.", fg="green")
+        )
 
     except FileNotFoundError:
         click.echo(
@@ -1028,7 +1096,7 @@ def _unload_and_remove_service():
 
     try:
         # Unload the service first
-        actions.run_command(["launchctl", "unload", "-w", str(plist_path)])
+        run_command(["launchctl", "unload", "-w", str(plist_path)])
         click.echo("Service stopped.")
 
         # Remove the plist file
@@ -1064,7 +1132,9 @@ def _cleanup_user_files():
     for item in cleanup_items:
         click.echo(f"  • {item}")
 
-    if not ask_yes_no("\nWould you like to remove these files for a complete cleanup?", default="n"):
+    if not ask_yes_no(
+        "\nWould you like to remove these files for a complete cleanup?", default="n"
+    ):
         click.echo("Configuration and log files preserved.")
         return
 
@@ -1155,7 +1225,9 @@ def setup(config_file):
 
         # Ensure config options are set up
         if not ensure_shell_proxy_config():
-            click.echo(click.style("❌ Failed to set up shell proxy configuration", fg="red"))
+            click.echo(
+                click.style("❌ Failed to set up shell proxy configuration", fg="red")
+            )
             return
 
         # Reload config after ensuring options are set up
@@ -1171,7 +1243,11 @@ def setup(config_file):
         click.echo(f"Primary shell: {primary_shell}")
 
         if setup_all_shell_integrations(cfg):
-            click.echo(click.style("✅ Shell proxy integration set up successfully", fg="green"))
+            click.echo(
+                click.style(
+                    "✅ Shell proxy integration set up successfully", fg="green"
+                )
+            )
             click.echo("\nShell proxy integration will:")
             click.echo("• Automatically configure proxy variables for terminal apps")
             click.echo("• Parse PAC/WPAD files when needed")
@@ -1181,7 +1257,9 @@ def setup(config_file):
             click.echo("To disable: set shell_proxy_enabled = false in config.toml")
             click.echo("\nRestart your shell or open a new terminal to apply changes.")
         else:
-            click.echo(click.style("❌ Failed to set up shell proxy integration", fg="red"))
+            click.echo(
+                click.style("❌ Failed to set up shell proxy integration", fg="red")
+            )
 
     except Exception as e:
         click.echo(f"Error setting up shell proxy integration: {e}", err=True)
@@ -1198,17 +1276,23 @@ def remove():
         )
 
         detected_shells, _ = detect_user_shells()
-        click.echo(f"Removing NetWatcher proxy integration from: {', '.join(detected_shells)}")
+        click.echo(
+            f"Removing NetWatcher proxy integration from: {', '.join(detected_shells)}"
+        )
 
         # This now automatically disables shell_proxy_enabled in config
         remove_all_shell_integrations()
         cleanup_shell_proxy_files()
 
-        click.echo(click.style("✅ Shell proxy integration removed successfully", fg="green"))
+        click.echo(
+            click.style("✅ Shell proxy integration removed successfully", fg="green")
+        )
         click.echo("• Disabled shell_proxy_enabled in configuration")
         click.echo("• Removed integration from shell config files")
         click.echo("• Cleaned up proxy environment files")
-        click.echo("Restart your shell or open a new terminal for changes to take effect.")
+        click.echo(
+            "Restart your shell or open a new terminal for changes to take effect."
+        )
 
     except Exception as e:
         click.echo(f"Error removing shell proxy integration: {e}", err=True)
@@ -1239,7 +1323,9 @@ def show_status(config_file):
 
         # Check configuration
         shell_proxy_enabled = cfg.get("settings", {}).get("shell_proxy_enabled", True)
-        configured_shells = cfg.get("settings", {}).get("shell_proxy_shells", detected_shells)
+        configured_shells = cfg.get("settings", {}).get(
+            "shell_proxy_shells", detected_shells
+        )
 
         click.echo("\nConfiguration:")
         click.echo(f"• shell_proxy_enabled: {shell_proxy_enabled}")
@@ -1319,7 +1405,9 @@ def check():
 
         input_content = None
         if cmd_path == "/usr/bin/tee":
-            input_content = "# This is a test file created by NetWatcher check. Safe to remove.\n"
+            input_content = (
+                "# This is a test file created by NetWatcher check. Safe to remove.\n"
+            )
 
         try:
             result = subprocess.run(
@@ -1333,7 +1421,8 @@ def check():
             # For most commands, return code 0 means success
             # For lpadmin -h and sntp -h, they might return non-zero but that's OK if no password was required
             if result.returncode == 0 or (
-                "a password is required" not in result.stderr.lower() and "sudo:" not in result.stderr.lower()
+                "a password is required" not in result.stderr.lower()
+                and "sudo:" not in result.stderr.lower()
             ):
                 click.echo(click.style(" ✓", fg="green"))
             else:
@@ -1346,7 +1435,9 @@ def check():
 
         except subprocess.TimeoutExpired:
             click.echo(click.style(" ✗ (timeout)", fg="red"))
-            click.echo(f"    Error: {cmd_name} check timed out (likely requires password)")
+            click.echo(
+                f"    Error: {cmd_name} check timed out (likely requires password)"
+            )
             all_passed = False
         except FileNotFoundError:
             click.echo(click.style(" ✗ (not found)", fg="red"))
@@ -1360,14 +1451,18 @@ def check():
     click.echo()  # Blank line
 
     if all_passed:
-        click.echo(click.style("✓ All sudo permissions are correctly configured!", fg="green"))
+        click.echo(
+            click.style("✓ All sudo permissions are correctly configured!", fg="green")
+        )
         click.echo("NetWatcher should work without password prompts.")
     else:
         click.echo(click.style("✗ Sudo configuration needs to be updated.", fg="red"))
         click.echo("\nTo fix this, add the following to your sudo configuration:")
         click.echo("  1. Run: sudo visudo -f /etc/sudoers.d/$USER")
         click.echo("  2. Add these lines:")
-        click.echo("     # Allow NetWatcher to run required network commands without a password")
+        click.echo(
+            "     # Allow NetWatcher to run required network commands without a password"
+        )
         click.echo(
             "     Cmnd_Alias NETWATCHER_CMDS = /usr/sbin/networksetup, /usr/sbin/systemsetup, /usr/sbin/lpadmin, /usr/bin/sntp, /bin/mkdir /etc/resolver, /bin/rm /etc/resolver/*, /usr/bin/tee /etc/resolver/*, /usr/bin/dscacheutil -flushcache"
         )
