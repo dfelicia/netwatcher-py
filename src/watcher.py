@@ -33,10 +33,6 @@ from .network.configuration import set_proxy
 from .logging_config import setup_logging, get_logger
 
 
-# Get module logger
-logger = get_logger(__name__)
-
-
 class NetWatcherApp(rumps.App):
     """Main application class for NetWatcher."""
 
@@ -114,13 +110,13 @@ class NetWatcherApp(rumps.App):
             self.runloop = CFRunLoopGetCurrent()
             source = SCDynamicStoreCreateRunLoopSource(None, self.store, 0)
             CFRunLoopAddSource(self.runloop, source, kCFRunLoopDefaultMode)
-            logger.info("SystemConfiguration watcher is set up")
+            self.logger.info("SystemConfiguration watcher is set up")
 
             # Trigger initial evaluation after a short delay
             self.debounce_timer = Timer(1.0, self.evaluate_network_state)
             self.debounce_timer.start()
         else:
-            logger.error("Failed to create SCDynamicStore")
+            self.logger.error("Failed to create SCDynamicStore")
 
     def update_menu(self, location_name, connection_info=None, vpn_status=None):
         """Updates the menu bar title and menu items."""
@@ -130,7 +126,7 @@ class NetWatcherApp(rumps.App):
         try:
             self.menu.clear()
         except Exception as e:
-            logger.error(f"Menu clear error: {e}")
+            self.logger.error(f"Menu clear error: {e}")
 
         # Build menu from scratch to avoid menu item conflicts
         menu_items = [
@@ -188,11 +184,11 @@ class NetWatcherApp(rumps.App):
         try:
             self.menu = menu_items
         except Exception as e:
-            logger.error(f"Menu assignment error: {e}")
+            self.logger.error(f"Menu assignment error: {e}")
 
     def run_test(self, _):
         """Callback to manually run a configuration test."""
-        logger.info("Manual test triggered from menu bar.")
+        self.logger.info("Manual test triggered from menu bar.")
 
         # Clear cache to ensure fresh data for manual test
         clear_cache()
@@ -232,25 +228,25 @@ class NetWatcherApp(rumps.App):
 
     def notification_center(self, info):
         """Handle notification clicks."""
-        logger.info(f"Notification clicked with info: {info}")
+        self.logger.info(f"Notification clicked with info: {info}")
 
         # Check if this is our test notification
         if isinstance(info, dict) and info.get("data") == "open_log":
-            logger.info("Opening log file from dict data")
+            self.logger.info("Opening log file from dict data")
             self.open_log_file()
         elif hasattr(info, "userInfo") and info.userInfo().get("data") == "open_log":
-            logger.info("Opening log file from userInfo")
+            self.logger.info("Opening log file from userInfo")
             self.open_log_file()
         elif hasattr(info, "data") and info.data == "open_log":
-            logger.info("Opening log file from info.data")
+            self.logger.info("Opening log file from info.data")
             self.open_log_file()
         else:
             # For any test notification, open the log
             if "NetWatcher Test" in str(info):
-                logger.info("Opening log file from NetWatcher Test match")
+                self.logger.info("Opening log file from NetWatcher Test match")
                 self.open_log_file()
             else:
-                logger.info(
+                self.logger.info(
                     f"No match found for notification info: {type(info)} - {dir(info)}"
                 )
 
@@ -260,17 +256,17 @@ class NetWatcherApp(rumps.App):
         try:
             # Use 'open' command to open the log file with the default application
             subprocess.run(["open", str(log_file)], check=True)
-            logger.info(f"Opened log file: {log_file}")
+            self.logger.info(f"Opened log file: {log_file}")
         except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to open log file: {e}")
+            self.logger.error(f"Failed to open log file: {e}")
         except Exception as e:
-            logger.error(f"Unexpected error opening log file: {e}")
+            self.logger.error(f"Unexpected error opening log file: {e}")
 
     def sc_callback(self, *args):
         """SystemConfiguration callback for network changes."""
         # If we're already evaluating, ignore additional callbacks
         if self.is_evaluating:
-            logger.debug("Network change detected during evaluation, ignoring")
+            self.logger.debug("Network change detected during evaluation, ignoring")
             return
 
         # Cancel any existing debounce timer
@@ -280,7 +276,7 @@ class NetWatcherApp(rumps.App):
 
         # Only log the debounce message if there wasn't already a timer running
         if not timer_was_active:
-            logger.info("Network change detected, evaluating after debounce")
+            self.logger.info("Network change detected, evaluating after debounce")
 
         # Simple approach like bash script: just wait for things to settle, then evaluate
         debounce_seconds = self.config.get("settings", {}).get("debounce_seconds", 5)
@@ -293,13 +289,13 @@ class NetWatcherApp(rumps.App):
         """The core logic to check network and apply settings."""
         # Set the evaluation flag to prevent concurrent evaluations
         if self.is_evaluating:
-            logger.debug("Evaluation already in progress, skipping")
+            self.logger.debug("Evaluation already in progress, skipping")
             return
 
         self.is_evaluating = True
 
         try:
-            logger.info("Evaluating network state after debounce")
+            self.logger.info("Evaluating network state after debounce")
 
             # Clear network state cache to ensure fresh data
             clear_cache()
@@ -362,7 +358,7 @@ class NetWatcherApp(rumps.App):
                     vpn_status=vpn_details,
                 )
             else:
-                logger.debug(
+                self.logger.debug(
                     f"No change in location ({new_location}) or VPN state, skipping apply"
                 )
 
@@ -373,28 +369,32 @@ class NetWatcherApp(rumps.App):
 
     def quit_app(self, _):
         """Gracefully stop the launchd service and quit the app."""
-        logger.info("Quit button clicked. Unloading launchd service.")
+        self.logger.info("Quit button clicked. Unloading launchd service.")
         try:
             plist_path = config.LAUNCH_AGENT_PLIST_PATH
             if plist_path.exists():
                 # Use run_command from utils for consistency
                 run_command(["launchctl", "unload", "-w", str(plist_path)])
             else:
-                logger.warning(
+                self.logger.warning(
                     f"Launch agent plist not found at {plist_path}, cannot unload."
                 )
         except Exception as e:
-            logger.error(f"Failed to unload launchd service: {e}")
+            self.logger.error(f"Failed to unload launchd service: {e}")
 
         rumps.quit_application()
 
 
 def main(debug=False):
     """Main function to run the app."""
-    setup_logging(debug)
+    # Note: logging setup is done in NetWatcherApp.__init__ based on config
+    # Get logger after the app is created (which sets up logging)
 
     # The name is used for the SCDynamicStore and should be unique.
     app = NetWatcherApp(name="com.user.netwatcher", quit_button=None)
+
+    # Now get the logger after logging is set up
+    logger = get_logger(__name__)
 
     # Hide from dock - this prevents the Python icon from appearing in the dock
     # We need to do this after the app is created but before run() is called
