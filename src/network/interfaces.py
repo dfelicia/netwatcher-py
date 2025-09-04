@@ -12,7 +12,10 @@ try:
 except ImportError:
     SystemConfiguration = None
 
-from . import VPN_INTERFACE_PREFIX
+# from . import VPN_INTERFACE_PREFIX
+
+# Define locally to avoid circular import
+VPN_INTERFACE_PREFIX = "utun"  # macOS VPN tunnel interfaces (utun0, utun1, etc.)
 from ..logging_config import get_logger
 from ..utils import (
     run_command,
@@ -70,9 +73,7 @@ def get_primary_service_id():
 def get_primary_service_scutil():
     """Get primary service info using scutil as fallback."""
     try:
-        output = run_command(
-            ["scutil"], capture=True, input="show State:/Network/Global/IPv4\n"
-        )
+        output = run_command(["scutil"], capture=True, input="show State:/Network/Global/IPv4\n")
         if not output:
             return None, None
 
@@ -136,43 +137,24 @@ def find_configurable_service():
     try:
         # Use SystemConfiguration to get network services
         if SystemConfiguration:
-            dynamic_store = SystemConfiguration.SCDynamicStoreCreate(
-                None, "netwatcher", None, None
-            )
+            dynamic_store = SystemConfiguration.SCDynamicStoreCreate(None, "netwatcher", None, None)
 
             # Get the primary service
-            primary_service_key = (
-                SystemConfiguration.SCDynamicStoreKeyCreateNetworkGlobalEntity(
-                    None,
-                    SystemConfiguration.kSCDynamicStoreDomainState,
-                    SystemConfiguration.kSCEntNetIPv4,
-                )
+            primary_service_key = SystemConfiguration.SCDynamicStoreKeyCreateNetworkGlobalEntity(
+                None,
+                SystemConfiguration.kSCDynamicStoreDomainState,
+                SystemConfiguration.kSCEntNetIPv4,
             )
-            primary_service_info = SystemConfiguration.SCDynamicStoreCopyValue(
-                dynamic_store, primary_service_key
-            )
+            primary_service_info = SystemConfiguration.SCDynamicStoreCopyValue(dynamic_store, primary_service_key)
 
             if primary_service_info:
                 primary_service_id = primary_service_info.get("PrimaryService")
                 primary_interface = primary_service_info.get("PrimaryInterface")
 
-                logger.debug(
-                    f"Primary service ID: {primary_service_id}, interface: {primary_interface}"
-                )
+                logger.debug(f"Primary service ID: {primary_service_id}, interface: {primary_interface}")
 
                 # If primary interface is VPN (utun), find underlying service
-                if primary_interface and primary_interface.startswith(
-                    VPN_INTERFACE_PREFIX
-                ):
-                    # Get all network services and find active non-VPN interfaces
-                    services_key = (
-                        SystemConfiguration.SCDynamicStoreKeyCreateNetworkServiceEntity(
-                            None,
-                            SystemConfiguration.kSCDynamicStoreDomainSetup,
-                            None,
-                            SystemConfiguration.kSCEntNetInterface,
-                        )
-                    )
+                if primary_interface and primary_interface.startswith(VPN_INTERFACE_PREFIX):
                     # This is getting complex - let's fall back to the tested shell approach for now
                     # but with reduced warnings
                     pass
@@ -229,20 +211,14 @@ def find_configurable_service_shell():
                     # Validate it's a proper IPv4 address
                     if re.match(r"^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$", ip_address):
                         active_ifaces.append((device, port_name))
-                        logger.debug(
-                            f"Found active interface: {device} ({port_name}) with IP {ip_address}"
-                        )
+                        logger.debug(f"Found active interface: {device} ({port_name}) with IP {ip_address}")
             except Exception:
                 # Expected for interfaces without IP addresses
                 continue
 
         # Apply priority order similar to original Bash script
         # Skip VPN interfaces since we're looking for underlying service
-        non_vpn_ifaces = [
-            (dev, port)
-            for dev, port in active_ifaces
-            if not dev.startswith(VPN_INTERFACE_PREFIX)
-        ]
+        non_vpn_ifaces = [(dev, port) for dev, port in active_ifaces if not dev.startswith(VPN_INTERFACE_PREFIX)]
 
         # Prioritize wired interfaces (non-Wi-Fi)
         wired_ifaces = [(dev, port) for dev, port in non_vpn_ifaces if port != "Wi-Fi"]
@@ -268,20 +244,14 @@ def find_configurable_service_shell():
         # Fall back to Wi-Fi if no wired interfaces
         wifi_ifaces = [(dev, port) for dev, port in active_ifaces if port == "Wi-Fi"]
         if wifi_ifaces:
-            logger.debug(f"Using active Wi-Fi service: Wi-Fi")
+            logger.debug("Using active Wi-Fi service: Wi-Fi")
             return "Wi-Fi"
 
         # Final fallback - check what services are available in networksetup
-        services_output = run_command(
-            ["networksetup", "-listallnetworkservices"], capture=True
-        )
+        services_output = run_command(["networksetup", "-listallnetworkservices"], capture=True)
         if services_output:
             lines = services_output.strip().split("\n")
-            services = [
-                line.strip()
-                for line in lines[1:]
-                if line.strip() and not line.startswith("*")
-            ]
+            services = [line.strip() for line in lines[1:] if line.strip() and not line.startswith("*")]
 
             for preferred in ["Wi-Fi", "Ethernet"]:
                 if preferred in services:
@@ -314,17 +284,11 @@ def get_all_active_services(include_vpn=False):
                 service_to_device[port_name] = device
                 port_name = None
 
-        services_output = run_command(
-            ["networksetup", "-listallnetworkservices"], capture=True
-        )
+        services_output = run_command(["networksetup", "-listallnetworkservices"], capture=True)
         lines = services_output.splitlines()
         # Skip the first line if it's the asterisk note
         start_index = 1 if "asterisk" in lines[0].lower() else 0
-        services = [
-            line.strip()
-            for line in lines[start_index:]
-            if line.strip() and not line.startswith("*")
-        ]
+        services = [line.strip() for line in lines[start_index:] if line.strip() and not line.startswith("*")]
 
         for service in services:
             device = None
@@ -360,9 +324,7 @@ def get_all_active_services(include_vpn=False):
                 if ip and re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip):
                     if include_vpn or not device.startswith(VPN_INTERFACE_PREFIX):
                         active.append((service, device))
-                        logger.debug(
-                            f"Added active service: {service} ({device}) with IP {ip}"
-                        )
+                        logger.debug(f"Added active service: {service} ({device}) with IP {ip}")
                 else:
                     logger.debug(f"Invalid or no IP for {service} ({device})")
             else:

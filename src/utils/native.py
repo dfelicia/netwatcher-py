@@ -6,10 +6,7 @@ and socket operations for network information gathering.
 It serves as the central location for all native API calls to avoid duplication.
 """
 
-import fcntl
 import re
-import socket
-import struct
 import subprocess
 
 try:
@@ -61,9 +58,7 @@ def get_dns_info_native():
         for dns_key in dns_keys:
             dns_dict = SystemConfiguration.SCDynamicStoreCopyValue(store, dns_key)
             if dns_dict:
-                resolver_info = _format_dns_resolver_info(
-                    dns_dict, dns_key, len(result) + 1
-                )
+                resolver_info = _format_dns_resolver_info(dns_dict, dns_key, len(result) + 1)
                 if resolver_info:
                     result.extend(resolver_info)
 
@@ -78,9 +73,7 @@ def _get_global_dns_info(store):
     """Get global DNS configuration as fallback."""
     try:
         global_dns_key = "State:/Network/Global/DNS"
-        global_dns_dict = SystemConfiguration.SCDynamicStoreCopyValue(
-            store, global_dns_key
-        )
+        global_dns_dict = SystemConfiguration.SCDynamicStoreCopyValue(store, global_dns_key)
 
         if not global_dns_dict:
             return None
@@ -216,9 +209,7 @@ def get_interface_ip_native(interface):
     # Fallback: parse ifconfig output when netifaces is not available
     logger.debug("netifaces not available, using command fallback")
     try:
-        result = subprocess.run(
-            ["ifconfig", interface], capture_output=True, text=True, timeout=5
-        )
+        result = subprocess.run(["ifconfig", interface], capture_output=True, text=True, timeout=5)
         if result.returncode == 0:
             match = re.search(r"inet (\d+\.\d+\.\d+\.\d+)", result.stdout)
             if match:

@@ -6,11 +6,10 @@ from specific VPN clients like Cisco AnyConnect.
 """
 
 import re
-import subprocess
 from pathlib import Path
 
 from ..logging_config import get_logger
-from ..utils import get_service_name_native, run_command
+from ..utils import run_command
 
 # Get module logger
 logger = get_logger(__name__)

@@ -12,9 +12,12 @@ try:
 except ImportError:
     CoreWLAN = None
 
-from . import VPN_INTERFACE_PREFIX
+# from . import VPN_INTERFACE_PREFIX
+
+# Define locally to avoid circular import
+VPN_INTERFACE_PREFIX = "utun"  # macOS VPN tunnel interfaces (utun0, utun1, etc.)
 from ..logging_config import get_logger
-from ..utils import run_command, get_dns_info_native
+from ..utils import run_command
 from .interfaces import get_default_route_interface
 from .cache import cache_network_function
 

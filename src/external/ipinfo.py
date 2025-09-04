@@ -60,9 +60,7 @@ def get_connection_details(silent=False):
         # Create request with appropriate proxy configuration
         if proxy_url:
             # Use proxy configuration
-            proxy_handler = urllib.request.ProxyHandler(
-                {"http": f"http://{proxy_url}", "https": f"http://{proxy_url}"}
-            )
+            proxy_handler = urllib.request.ProxyHandler({"http": f"http://{proxy_url}", "https": f"http://{proxy_url}"})
             opener = urllib.request.build_opener(proxy_handler)
         else:
             # No proxy configuration found, use default
@@ -79,9 +77,7 @@ def get_connection_details(silent=False):
                 "ip": data.get("query", "N/A"),  # ip-api.com uses 'query' for IP
                 "city": data.get("city", "N/A"),
                 "region": data.get("regionName", "N/A"),  # ip-api.com uses 'regionName'
-                "country": data.get(
-                    "countryCode", "N/A"
-                ),  # ip-api.com uses 'countryCode'
+                "country": data.get("countryCode", "N/A"),  # ip-api.com uses 'countryCode'
                 "isp": data.get("isp", "N/A"),  # ip-api.com provides 'isp' directly
             }
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as e:

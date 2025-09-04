@@ -1,7 +1,6 @@
 import importlib.resources
 import os
 import subprocess
-from pathlib import Path
 
 # Ensure system paths are in the PATH for launchd, which has a minimal environment
 os.environ["PATH"] = "/usr/bin:/bin:/usr/sbin:/sbin:" + os.environ.get("PATH", "")
@@ -199,9 +198,7 @@ class NetWatcherApp(rumps.App):
         self.config = config.load_config()
 
         # Run the evaluation
-        location_name, vpn_active, vpn_details = (
-            actions.check_and_apply_location_settings(self.config)
-        )
+        location_name, vpn_active, vpn_details = actions.check_and_apply_location_settings(self.config)
         self.current_location = location_name
 
         # Update the menu to reflect any changes
@@ -248,9 +245,7 @@ class NetWatcherApp(rumps.App):
                 logger.info("Opening log file from NetWatcher Test match")
                 self.open_log_file()
             else:
-                logger.info(
-                    f"No match found for notification info: {type(info)} - {dir(info)}"
-                )
+                logger.info(f"No match found for notification info: {type(info)} - {dir(info)}")
 
     def open_log_file(self):
         """Open the log file in the default application (usually Console.app)."""
@@ -282,9 +277,7 @@ class NetWatcherApp(rumps.App):
 
         # Simple approach like bash script: just wait for things to settle, then evaluate
         debounce_seconds = self.config.get("settings", {}).get("debounce_seconds", 5)
-        self.debounce_timer = Timer(
-            float(debounce_seconds), self.evaluate_network_state
-        )
+        self.debounce_timer = Timer(float(debounce_seconds), self.evaluate_network_state)
         self.debounce_timer.start()
 
     def evaluate_network_state(self, *args):
@@ -318,10 +311,8 @@ class NetWatcherApp(rumps.App):
 
             if location_changed or vpn_changed:
                 # Apply settings and fetch VPN details if changed
-                location_name, vpn_active, vpn_details = (
-                    actions.check_and_apply_location_settings(
-                        self.config, apply=True, fetch_details=True
-                    )
+                location_name, vpn_active, vpn_details = actions.check_and_apply_location_settings(
+                    self.config, apply=True, fetch_details=True
                 )
                 self.current_location = location_name
 
@@ -337,9 +328,7 @@ class NetWatcherApp(rumps.App):
                                 if vpn_interface and vpn_interface.startswith("utun")
                                 else []
                             )
-                            self.created_resolver_files = create_vpn_resolver_files(
-                                search_domains, vpn_dns
-                            )
+                            self.created_resolver_files = create_vpn_resolver_files(search_domains, vpn_dns)
                     else:
                         remove_vpn_resolver_files(self.created_resolver_files)
                         actions.run_command(["sudo", "dscacheutil", "-flushcache"])
@@ -360,9 +349,7 @@ class NetWatcherApp(rumps.App):
                     vpn_status=vpn_details,
                 )
             else:
-                logger.debug(
-                    f"No change in location ({new_location}) or VPN state, skipping apply"
-                )
+                logger.debug(f"No change in location ({new_location}) or VPN state, skipping apply")
 
         finally:
             # Always clear the evaluation flag and network cache
@@ -378,9 +365,7 @@ class NetWatcherApp(rumps.App):
                 # Use run_command from actions.py for consistency
                 actions.run_command(["launchctl", "unload", "-w", str(plist_path)])
             else:
-                logger.warning(
-                    f"Launch agent plist not found at {plist_path}, cannot unload."
-                )
+                logger.warning(f"Launch agent plist not found at {plist_path}, cannot unload.")
         except Exception as e:
             logger.error(f"Failed to unload launchd service: {e}")
 

@@ -14,9 +14,7 @@ from ..logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def parse_pac_file_for_generic_url(
-    pac_url: str, test_url: str = "http://effinthing.com"
-) -> Optional[str]:
+def parse_pac_file_for_generic_url(pac_url: str, test_url: str = "http://effinthing.com") -> Optional[str]:
     """
     Parse a PAC file and extract proxy configuration for a generic URL.
 
@@ -30,9 +28,7 @@ def parse_pac_file_for_generic_url(
     try:
         import pacparser
     except ImportError:
-        logger.error(
-            "pacparser module not available. Install with: pip install pacparser"
-        )
+        logger.error("pacparser module not available. Install with: pip install pacparser")
         return None
 
     try:
@@ -90,7 +86,7 @@ def parse_pac_file_for_generic_url(
             # Clean up pacparser
             try:
                 pacparser.cleanup()
-            except:
+            except Exception:
                 pass
 
     except urllib.error.URLError as e:

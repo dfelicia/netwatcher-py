@@ -26,3 +26,36 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src*"]
+
+[tool.ruff]
+# Exclude common non-source directories
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.egg-info",
+    ".venv",
+    "venv",
+]
+
+# Python version
+target-version = "py39"
+
+# Line length - set to a more practical limit for this codebase
+line-length = 120
+
+[tool.ruff.lint]
+# Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
+select = ["E", "F"]
+ignore = [
+    # Allow module level imports not at top of file for specific cases
+    # This is needed for our network module architecture to avoid circular imports
+    "E402",
+    # Ignore line too long - we'll let ruff format handle this automatically
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Allow more flexibility in __init__.py files
+"__init__.py" = ["E402", "F401"]

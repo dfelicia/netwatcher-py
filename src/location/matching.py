@@ -41,9 +41,7 @@ def find_matching_location(
 
     # Priority 3: Search domain matching (non-VPN)
     if not vpn_active and current_search_domains:
-        match = _find_domain_location(
-            locations, current_search_domains, log_level=log_level
-        )
+        match = _find_domain_location(locations, current_search_domains, log_level=log_level)
         if match:
             return match
 
@@ -110,10 +108,7 @@ def _find_home_location(locations, log_level=20):  # INFO level
         if name == "default":
             continue
         # Home characteristics: no proxy, minimal search domains
-        if (
-            not settings.get("proxy_url")
-            and len(settings.get("dns_search_domains", [])) <= 2
-        ):
+        if not settings.get("proxy_url") and len(settings.get("dns_search_domains", [])) <= 2:
             logger.log(log_level, f"No VPN - selected '{name}' (home-like config)")
             return name
     return None

@@ -176,23 +176,23 @@ def write_bash_proxy_env(proxy_config: Optional[Dict[str, str]]):
 # To disable: set shell_proxy_enabled = false in ~/.config/netwatcher/config.toml
 
 # Standard proxy variables
-export http_proxy="{proxy_config['http_proxy']}"
-export https_proxy="{proxy_config['https_proxy']}"
-export ftp_proxy="{proxy_config['ftp_proxy']}"
-export all_proxy="{proxy_config['all_proxy']}"
+export http_proxy="{proxy_config["http_proxy"]}"
+export https_proxy="{proxy_config["https_proxy"]}"
+export ftp_proxy="{proxy_config["ftp_proxy"]}"
+export all_proxy="{proxy_config["all_proxy"]}"
 
 # Legacy uppercase versions
-export HTTP_PROXY="{proxy_config['http_proxy']}"
-export HTTPS_PROXY="{proxy_config['https_proxy']}"
-export FTP_PROXY="{proxy_config['ftp_proxy']}"
-export ALL_PROXY="{proxy_config['all_proxy']}"
+export HTTP_PROXY="{proxy_config["http_proxy"]}"
+export HTTPS_PROXY="{proxy_config["https_proxy"]}"
+export FTP_PROXY="{proxy_config["ftp_proxy"]}"
+export ALL_PROXY="{proxy_config["all_proxy"]}"
 
 # Special case: rsync (no protocol)
-export rsync_proxy="{proxy_config['rsync_proxy']}"
+export rsync_proxy="{proxy_config["rsync_proxy"]}"
 
 # Bypass addresses
-export no_proxy="{proxy_config['no_proxy']}"
-export NO_PROXY="{proxy_config['no_proxy']}"
+export no_proxy="{proxy_config["no_proxy"]}"
+export NO_PROXY="{proxy_config["no_proxy"]}"
 """
         # Write atomically
         temp_file = cache_file.with_suffix(".tmp")
@@ -220,23 +220,23 @@ def write_csh_proxy_env(proxy_config: Optional[Dict[str, str]]):
 # To disable: set shell_proxy_enabled = false in ~/.config/netwatcher/config.toml
 
 # Standard proxy variables
-setenv http_proxy "{proxy_config['http_proxy']}"
-setenv https_proxy "{proxy_config['https_proxy']}"
-setenv ftp_proxy "{proxy_config['ftp_proxy']}"
-setenv all_proxy "{proxy_config['all_proxy']}"
+setenv http_proxy "{proxy_config["http_proxy"]}"
+setenv https_proxy "{proxy_config["https_proxy"]}"
+setenv ftp_proxy "{proxy_config["ftp_proxy"]}"
+setenv all_proxy "{proxy_config["all_proxy"]}"
 
 # Legacy uppercase versions
-setenv HTTP_PROXY "{proxy_config['http_proxy']}"
-setenv HTTPS_PROXY "{proxy_config['https_proxy']}"
-setenv FTP_PROXY "{proxy_config['ftp_proxy']}"
-setenv ALL_PROXY "{proxy_config['all_proxy']}"
+setenv HTTP_PROXY "{proxy_config["http_proxy"]}"
+setenv HTTPS_PROXY "{proxy_config["https_proxy"]}"
+setenv FTP_PROXY "{proxy_config["ftp_proxy"]}"
+setenv ALL_PROXY "{proxy_config["all_proxy"]}"
 
 # Special case: rsync (no protocol)
-setenv rsync_proxy "{proxy_config['rsync_proxy']}"
+setenv rsync_proxy "{proxy_config["rsync_proxy"]}"
 
 # Bypass addresses
-setenv no_proxy "{proxy_config['no_proxy']}"
-setenv NO_PROXY "{proxy_config['no_proxy']}"
+setenv no_proxy "{proxy_config["no_proxy"]}"
+setenv NO_PROXY "{proxy_config["no_proxy"]}"
 """
         # Write atomically
         temp_file = cache_file.with_suffix(".tmp")
@@ -264,23 +264,23 @@ def write_fish_proxy_env(proxy_config: Optional[Dict[str, str]]):
 # To disable: set shell_proxy_enabled = false in ~/.config/netwatcher/config.toml
 
 # Standard proxy variables
-set -x http_proxy "{proxy_config['http_proxy']}"
-set -x https_proxy "{proxy_config['https_proxy']}"
-set -x ftp_proxy "{proxy_config['ftp_proxy']}"
-set -x all_proxy "{proxy_config['all_proxy']}"
+set -x http_proxy "{proxy_config["http_proxy"]}"
+set -x https_proxy "{proxy_config["https_proxy"]}"
+set -x ftp_proxy "{proxy_config["ftp_proxy"]}"
+set -x all_proxy "{proxy_config["all_proxy"]}"
 
 # Legacy uppercase versions
-set -x HTTP_PROXY "{proxy_config['http_proxy']}"
-set -x HTTPS_PROXY "{proxy_config['https_proxy']}"
-set -x FTP_PROXY "{proxy_config['ftp_proxy']}"
-set -x ALL_PROXY "{proxy_config['all_proxy']}"
+set -x HTTP_PROXY "{proxy_config["http_proxy"]}"
+set -x HTTPS_PROXY "{proxy_config["https_proxy"]}"
+set -x FTP_PROXY "{proxy_config["ftp_proxy"]}"
+set -x ALL_PROXY "{proxy_config["all_proxy"]}"
 
 # Special case: rsync (no protocol)
-set -x rsync_proxy "{proxy_config['rsync_proxy']}"
+set -x rsync_proxy "{proxy_config["rsync_proxy"]}"
 
 # Bypass addresses
-set -x no_proxy "{proxy_config['no_proxy']}"
-set -x NO_PROXY "{proxy_config['no_proxy']}"
+set -x no_proxy "{proxy_config["no_proxy"]}"
+set -x NO_PROXY "{proxy_config["no_proxy"]}"
 """
         # Write atomically
         temp_file = cache_file.with_suffix(".tmp")
@@ -469,9 +469,7 @@ def ensure_shell_proxy_config():
             logger.debug(
                 f"DEBUG: shell_proxy_enabled value type: {type(config_data['settings']['shell_proxy_enabled'])}"
             )
-            logger.debug(
-                f"DEBUG: shell_proxy_enabled value: {repr(config_data['settings']['shell_proxy_enabled'])}"
-            )
+            logger.debug(f"DEBUG: shell_proxy_enabled value: {repr(config_data['settings']['shell_proxy_enabled'])}")
 
         # Add shell_proxy_shells if missing (commented example)
         if "shell_proxy_shells" not in config_data["settings"]:
@@ -545,9 +543,7 @@ def setup_all_shell_integrations(config: Dict) -> bool:
         return True
 
     detected_shells, primary_shell = detect_user_shells()
-    configured_shells = config.get("settings", {}).get(
-        "shell_proxy_shells", detected_shells
-    )
+    configured_shells = config.get("settings", {}).get("shell_proxy_shells", detected_shells)
 
     # Only configure shells that are both detected and requested
     shells_to_configure = [s for s in detected_shells if s in configured_shells]
@@ -606,18 +602,14 @@ def cleanup_shell_proxy_files():
             logger.warning(f"Failed to remove {proxy_file}: {e}")
 
 
-def update_shell_proxy_configuration(
-    proxy_url: str, dns_search_domains: Optional[List[str]] = None
-):
+def update_shell_proxy_configuration(proxy_url: str, dns_search_domains: Optional[List[str]] = None):
     """Update shell proxy configuration based on proxy URL and DNS search domains."""
     try:
         proxy_config = parse_proxy_config(proxy_url, dns_search_domains)
         write_all_shell_proxy_files(proxy_config)
 
         if proxy_config:
-            logger.info(
-                f"Updated shell proxy configuration: {proxy_config['http_proxy']}"
-            )
+            logger.info(f"Updated shell proxy configuration: {proxy_config['http_proxy']}")
         else:
             logger.info("Disabled shell proxy configuration")
 

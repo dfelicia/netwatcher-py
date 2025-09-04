@@ -6,7 +6,6 @@ DNS servers, search domains, proxies, printers, and NTP servers.
 """
 
 import urllib.parse
-from pathlib import Path
 import socket
 
 from .. import config
@@ -21,9 +20,7 @@ def set_dns_servers(service_name, dns_servers):
     """Sets the DNS servers for a network service."""
     if not dns_servers:
         # Don't set anything - let DHCP handle DNS
-        logger.debug(
-            f"No DNS servers configured for '{service_name}', leaving DHCP in control"
-        )
+        logger.debug(f"No DNS servers configured for '{service_name}', leaving DHCP in control")
         return
 
     dns_list = [str(d) for d in dns_servers]
@@ -80,9 +77,7 @@ def set_proxy(service_name, url=None):
                 "Empty",
             ]
         )
-        logger.info(
-            f"Disabled all proxies and cleared bypass domains for '{service_name}'"
-        )
+        logger.info(f"Disabled all proxies and cleared bypass domains for '{service_name}'")
         return
 
     logger.info(f"Setting proxy for '{service_name}' to {url}")
@@ -129,9 +124,7 @@ def _disable_all_proxies(service_name):
 def _build_proxy_command(service_name, url):
     """Build the appropriate networksetup command for the given proxy URL."""
     # PAC/WPAD file
-    if url.startswith(("http://", "https://")) and (
-        "/wpad.dat" in url.lower() or ".pac" in url.lower()
-    ):
+    if url.startswith(("http://", "https://")) and ("/wpad.dat" in url.lower() or ".pac" in url.lower()):
         return ["sudo", "/usr/sbin/networksetup", "-setautoproxyurl", service_name, url]
 
     # Parse URL for manual proxy configuration
@@ -223,9 +216,7 @@ def set_ntp_server(ntp_server):
     # Force an immediate time sync with shorter timeout
     logger.debug("Triggering time synchronization")
     # Use shorter timeout for VPN scenarios where NTP might be blocked
-    sntp_result = run_command(
-        ["sudo", "/usr/bin/sntp", "-t", "3", "-sS", ntp_server], capture=True
-    )
+    sntp_result = run_command(["sudo", "/usr/bin/sntp", "-t", "3", "-sS", ntp_server], capture=True)
     if sntp_result:
         logger.debug("Time synchronization completed successfully")
     else:

@@ -14,9 +14,7 @@ from ..logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def run_command(
-    command, capture=False, text=True, input=None, shell=False, quiet_on_error=False
-):
+def run_command(command, capture=False, text=True, input=None, shell=False, quiet_on_error=False):
     """
     Execute a command with robust error handling and logger.
 
@@ -59,19 +57,13 @@ def run_command(
 
         if result.returncode != 0:
             if not quiet_on_error:
-                logger.debug(
-                    f"Command '{command}' failed with status {result.returncode}"
-                )
+                logger.debug(f"Command '{command}' failed with status {result.returncode}")
                 if result.stdout:
                     logger.debug(f"Stdout: {result.stdout.strip()}")
             else:
                 logger.debug(f"Command '{command}' failed (expected)")
 
-            return (
-                ((result.stdout or "") + (result.stderr or "")).strip()
-                if capture
-                else False
-            )
+            return ((result.stdout or "") + (result.stderr or "")).strip() if capture else False
 
         # Success case
         return result.stdout.strip() if capture else True

@@ -5,7 +5,6 @@ This module handles loading, validation, and default configuration values
 for the NetWatcher application.
 """
 
-import os
 import toml
 from pathlib import Path
 

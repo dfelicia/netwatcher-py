@@ -57,9 +57,7 @@ def apply_location_settings(
             else:
                 # Off VPN with current domains: only use config domains to avoid stale data
                 # But preserve any local domains (like .local, .arpa)
-                local_domains = [
-                    d for d in current_domains if d.endswith((".local", ".arpa"))
-                ]
+                local_domains = [d for d in current_domains if d.endswith((".local", ".arpa"))]
                 all_domains = list(dict.fromkeys(config_domains + local_domains))
         else:
             # Location has no specific domains: use current system domains
@@ -79,7 +77,10 @@ def apply_location_settings(
 
 
 def check_and_apply_location_settings(
-    cfg, apply=True, fetch_details=True, log_level=20  # INFO level
+    cfg,
+    apply=True,
+    fetch_details=True,
+    log_level=20,  # INFO level
 ):
     """Determine current location and apply appropriate settings if apply=True.
 
@@ -123,9 +124,7 @@ def check_and_apply_location_settings(
             )
 
     # Find and apply location settings
-    location_name = find_matching_location(
-        cfg, current_ssid, current_search_domains, vpn_active, log_level=log_level
-    )
+    location_name = find_matching_location(cfg, current_ssid, current_search_domains, vpn_active, log_level=log_level)
 
     available_locations = list(cfg.get("locations", {}).keys())
     logger.debug(f"Available locations: {available_locations}")
@@ -179,23 +178,17 @@ def create_vpn_resolver_files(search_domains, vpn_dns_servers=None):
         run_command(["sudo", "mkdir", "-p", str(resolver_dir)])
 
         primary_interface = get_default_route_interface()
-        current_domains = (
-            get_current_search_domains(primary_interface) if primary_interface else []
-        )
+        current_domains = get_current_search_domains(primary_interface) if primary_interface else []
 
         for domain in search_domains:
             if domain in current_domains:
-                logger.debug(
-                    f"Skipping duplicate domain {domain} already in resolv.conf"
-                )
+                logger.debug(f"Skipping duplicate domain {domain} already in resolv.conf")
                 continue
 
             file_path = resolver_dir / domain
             content = f"search {domain}\n"
             if vpn_dns_servers:
-                content += (
-                    "\n".join(f"nameserver {dns}" for dns in vpn_dns_servers) + "\n"
-                )
+                content += "\n".join(f"nameserver {dns}" for dns in vpn_dns_servers) + "\n"
                 content += "search_order 1\n"  # Prioritize this resolver
 
             # Write using tee to avoid redirection issues with sudo

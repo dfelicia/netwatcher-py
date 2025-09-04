@@ -8,7 +8,6 @@ across all modules.
 
 import logging
 import sys
-from pathlib import Path
 from typing import Optional
 
 from . import config
@@ -55,14 +54,10 @@ class NetWatcherLogger:
 
         # Log the initialization
         logger = logging.getLogger(__name__)
-        logger.debug(
-            f"NetWatcher logging initialized (debug={'on' if debug else 'off'})"
-        )
+        logger.debug(f"NetWatcher logging initialized (debug={'on' if debug else 'off'})")
 
     @classmethod
-    def _add_file_handler(
-        cls, logger: logging.Logger, formatter: logging.Formatter
-    ) -> None:
+    def _add_file_handler(cls, logger: logging.Logger, formatter: logging.Formatter) -> None:
         """Add file handler for persistent logging."""
         try:
             # Ensure log directory exists
@@ -77,17 +72,13 @@ class NetWatcherLogger:
             print(f"Warning: Could not set up file logging: {e}", file=sys.stderr)
 
     @classmethod
-    def _add_console_handler(
-        cls, logger: logging.Logger, formatter: logging.Formatter
-    ) -> None:
+    def _add_console_handler(cls, logger: logging.Logger, formatter: logging.Formatter) -> None:
         """Add console handler for interactive feedback."""
         try:
             console_handler = logging.StreamHandler(sys.stderr)
             console_handler.setFormatter(formatter)
             # Console handler respects the debug setting
-            console_handler.setLevel(
-                logging.DEBUG if cls._debug_enabled else logging.INFO
-            )
+            console_handler.setLevel(logging.DEBUG if cls._debug_enabled else logging.INFO)
             logger.addHandler(console_handler)
         except Exception as e:
             print(f"Warning: Could not set up console logging: {e}", file=sys.stderr)
