@@ -695,6 +695,10 @@ def _save_configuration(
             "default"
         ].copy()
 
+    # Ensure SSIDs are strings before TOML serialization (prevents character array bug)
+    if "ssids" in location_cfg:
+        location_cfg["ssids"] = [str(ssid) for ssid in location_cfg["ssids"]]
+
     cfg["locations"][location_name] = location_cfg
 
     try:
