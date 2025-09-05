@@ -437,8 +437,6 @@ def update_shell_proxy_configuration(proxy_url):
                             <li><strong>Multi-shell support:</strong> Works with bash, zsh, tcsh/csh, and fish shells (both interactive and non-interactive)</li>
                             <li><strong>PAC file parsing:</strong> Automatically extracts actual proxy servers from corporate PAC/WPAD files using direct connections</li>
                             <li><strong>Smart cleanup:</strong> Proxy settings are removed when switching to locations without proxies</li>
-                            <li><strong>SwiftBar compatible:</strong> Non-interactive shells (like SwiftBar plugins) now receive proxy settings</li>
-                            <li><strong>Circular dependency prevention:</strong> PAC downloads bypass existing proxy settings to avoid timeouts</li>
                         </ul>
                         <strong>Environment Variables Set:</strong>
                         <div class="code-snippet">
@@ -518,16 +516,15 @@ def set_dns_servers(dns_servers, service_name):
         </div>
 
         <div style="background: #f0f8ff; padding: 25px; border-radius: 10px; margin: 30px 0; border-left: 5px solid #4a90e2;">
-            <h2>🔄 Recent Architecture Improvements</h2>
-            <p><strong>NetWatcher has been modernized with several key improvements:</strong></p>
+            <h2>🔄 Key Technical Features</h2>
+            <p><strong>NetWatcher includes several important technical improvements:</strong></p>
             <ul>
-                <li><strong>Removed Compatibility Layer:</strong> Eliminated <code>src/actions.py</code> wrapper - modules now import directly from specialized modules</li>
-                <li><strong>Fixed Background Service Logging:</strong> Proper logger initialization ensures both CLI and background service log correctly</li>
+                <li><strong>Reliable Background Service Logging:</strong> Proper logger initialization ensures both CLI and background service log correctly</li>
                 <li><strong>PAC Download Improvements:</strong> PAC/WPAD files now download via direct connections (no proxy) to prevent circular dependencies</li>
                 <li><strong>Enhanced Shell Support:</strong> Shell proxy settings now apply to all shells (interactive and non-interactive) for better SwiftBar/script compatibility</li>
-                <li><strong>Simplified Code Quality:</strong> Applied ruff formatting and complexity reduction - cleaner, more maintainable code</li>
+                <li><strong>Clean Code Quality:</strong> Applied consistent formatting and complexity reduction for maintainability</li>
             </ul>
-            <p><em>These changes assume fresh installs and eliminate legacy compatibility code, making NetWatcher cleaner and more reliable.</em></p>
+            <p><em>These features make NetWatcher reliable and compatible with various tools and environments.</em></p>
         </div>
 
         <div class="complete-flow">
@@ -589,7 +586,7 @@ ntp_server = "time.apple.com"
             <ul>
                 <li><strong>Functions</strong> - Small pieces that do one job</li>
                 <li><strong>Classes</strong> - <code>NetWatcherApp</code> bundles related functions together</li>
-                <li><strong>Imports</strong> - Direct imports from specialized modules (no compatibility layer)</li>
+                <li><strong>Imports</strong> - Clean imports from specialized modules for network, location, and configuration functions</li>
                 <li><strong>Dictionaries</strong> - Configuration stored as <code>{"dns_servers": ["8.8.8.8"]}</code></li>
                 <li><strong>Decorators</strong> - <code>@cache_network_function</code> automatically adds caching to functions</li>
                 <li><strong>HTTP Handlers</strong> - <code>ProxyHandler({})</code> for direct PAC downloads without proxy circular dependencies</li>

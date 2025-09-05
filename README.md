@@ -386,6 +386,11 @@ from src import actions
 - Cisco VPN details require the VPN CLI binary to be installed
 - Auto-detection works for most common VPN clients without configuration
 
+### Menu Bar App Issues
+- **Do not click the menu bar icon while network changes are being processed** - this can cause the app to crash and automatically respawn
+- If the menu bar app becomes unresponsive, it will automatically restart
+- Check `~/Library/Logs/netwatcher.log` for any error details
+
 ## Contributing
 
 Contributions are welcome! Please read the [CONTRIBUTING.md](CONTRIBUTING.md) for more information on how to contribute to this project.
