@@ -5,6 +5,7 @@ This module handles all network-related operations including:
 - Network state detection (SSID, DNS, VPN status)
 - Network interface management
 - Network configuration (DNS servers, proxies, NTP)
+- System proxy detection
 """
 
 # All module-level imports
@@ -33,6 +34,11 @@ from .shell_proxy import (
     update_shell_proxy_configuration,
     cleanup_shell_proxy_files,
     detect_user_shells,
+)
+from .proxy_detection import (
+    get_system_proxy_config,
+    get_urllib_proxy_handler,
+    get_proxy_url_for_shell,
 )
 from .cache import clear_cache
 
@@ -63,4 +69,8 @@ __all__ = [
     "update_shell_proxy_configuration",
     "cleanup_shell_proxy_files",
     "detect_user_shells",
+    # Proxy detection functions
+    "get_system_proxy_config",
+    "get_urllib_proxy_handler",
+    "get_proxy_url_for_shell",
 ]

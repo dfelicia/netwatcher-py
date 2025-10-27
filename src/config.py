@@ -84,10 +84,10 @@ def load_config():
     with open(path, "r") as f:
         config = toml.load(f)
 
-    # Import logging from our centralized module
-    from .logging_config import get_logger
+    # Use stdlib logger to avoid auto-initializing our custom logging before debug flag is read
+    import logging
 
-    logger = get_logger(__name__)
+    logger = logging.getLogger(__name__)
     logger.debug(f"Loaded locations: {list(config.get('locations', {}).keys())}")
     return config
 

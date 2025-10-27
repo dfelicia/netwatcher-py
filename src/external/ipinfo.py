@@ -8,10 +8,10 @@ from ip-api.com with proxy support.
 import json
 import urllib.error
 import urllib.request
-from pathlib import Path
 
 from .. import config
 from ..logging_config import get_logger
+from ..network.proxy_detection import get_urllib_proxy_handler
 
 # Get module logger
 logger = get_logger(__name__)
@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 
 def get_connection_details(silent=False):
     """
-    Fetch public IP and location details from ip-api.com with proxy support.
+    Fetch public IP and location details from ip-api.com.
 
     Args:
         silent: If True, suppress info-level logging
@@ -33,54 +33,48 @@ def get_connection_details(silent=False):
             - isp: Internet Service Provider name
 
     Note:
-        Automatically detects proxy settings from ~/.curlrc if present.
+        Uses system proxy settings automatically via urllib.
         Uses ip-api.com as the primary service for connection details.
     """
+    logger.debug(f"get_connection_details called (silent={silent})")
+
     if not silent:
         logger.info("Fetching connection details from ip-api.com")
 
     try:
-        # Check if we have an active proxy configuration via curlrc
-        curlrc_path = Path.home() / ".curlrc"
-        proxy_url = None
+        # Get system proxy if configured
+        proxy_handler = get_urllib_proxy_handler()
 
-        if curlrc_path.exists():
-            try:
-                curlrc_content = curlrc_path.read_text(encoding="utf-8")
-                # Find the first proxy line using a more Pythonic approach
-                proxy_lines = (
-                    line.split("=", 1)[1].strip()
-                    for line in curlrc_content.splitlines()
-                    if line.strip().lower().startswith("proxy") and "=" in line
-                )
-                proxy_url = next(proxy_lines, None)
-            except Exception:
-                pass  # Ignore curlrc parsing errors
-
-        # Create request with appropriate proxy configuration
-        if proxy_url:
-            # Use proxy configuration
-            proxy_handler = urllib.request.ProxyHandler({"http": f"http://{proxy_url}", "https": f"http://{proxy_url}"})
+        # Build opener with or without proxy
+        if proxy_handler:
             opener = urllib.request.build_opener(proxy_handler)
         else:
-            # No proxy configuration found, use default
             opener = urllib.request.build_opener()
 
+        # urllib automatically uses system proxy settings from environment (http_proxy, https_proxy)
+        # but when running as LaunchAgent, those aren't set, so we check system settings above
         request = urllib.request.Request(config.IPINFO_API_URL)
         request.add_header("User-Agent", "NetWatcher/1.0")
 
+        logger.debug(f"Making request to {config.IPINFO_API_URL}")
         with opener.open(request, timeout=config.IPINFO_TIMEOUT) as response:
             data = json.loads(response.read().decode("utf-8"))
+            logger.debug(f"Received response from ip-api.com: {data}")
 
             # Map ip-api.com response fields to our standard format
-            return {
+            result = {
                 "ip": data.get("query", "N/A"),  # ip-api.com uses 'query' for IP
                 "city": data.get("city", "N/A"),
                 "region": data.get("regionName", "N/A"),  # ip-api.com uses 'regionName'
-                "country": data.get("countryCode", "N/A"),  # ip-api.com uses 'countryCode'
+                "country": data.get(
+                    "countryCode", "N/A"
+                ),  # ip-api.com uses 'countryCode'
                 "isp": data.get("isp", "N/A"),  # ip-api.com provides 'isp' directly
             }
+            logger.debug(f"Returning connection details: {result}")
+            return result
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as e:
+        logger.debug(f"Network/JSON error fetching connection details: {e}")
         if not silent:
             logger.error(f"Failed to fetch connection details: {e}")
         return {
@@ -91,6 +85,7 @@ def get_connection_details(silent=False):
             "isp": "N/A",
         }
     except Exception as e:
+        logger.debug(f"Unexpected error fetching connection details: {e}")
         if not silent:
             logger.error(f"Unexpected error fetching connection details: {e}")
         return {

@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from ..logging_config import get_logger
-from .pac_parser import parse_pac_file_for_generic_url
+from .proxy_detection import get_proxy_url_for_shell
 from .. import config
 
 logger = get_logger(__name__)
@@ -110,8 +110,10 @@ def parse_proxy_config(
         return None
 
     if proxy_url.endswith((".pac", ".dat")):
-        # PAC/WPAD file - parse it
+        # PAC/WPAD file - parse it to get actual proxy
         logger.debug(f"Parsing PAC file: {proxy_url}")
+        from .pac_parser import parse_pac_file_for_generic_url
+
         actual_proxy = parse_pac_file_for_generic_url(proxy_url)
         if actual_proxy and actual_proxy != "DIRECT":
             proxy_url = actual_proxy

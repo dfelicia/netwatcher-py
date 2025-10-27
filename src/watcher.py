@@ -55,10 +55,9 @@ class NetWatcherApp(rumps.App):
         self.prev_vpn_active = False
         self.created_resolver_files = []
 
-        # Set up logging right away
-        # Check if config has debug enabled
+        # Set up logging with debug flag from config, forcing reinit to override any early setup
         debug_enabled = self.config.get("settings", {}).get("debug", False)
-        setup_logging(debug=debug_enabled)
+        setup_logging(debug=debug_enabled, force_reinit=True)
 
         # Get logger for this class
         self.logger = get_logger(f"{__name__}.{self.__class__.__name__}")

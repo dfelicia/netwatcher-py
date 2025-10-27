@@ -875,6 +875,19 @@ def test(debug):
 
         location_name, vpn_active, vpn_details = check_and_apply_location_settings(cfg)
 
+        # Also fetch and display connection details (for completeness)
+        try:
+            from .external import get_connection_details
+
+            connection_info = get_connection_details(silent=False)
+            click.echo(
+                f"\nConnection Details: IP={connection_info['ip']}, "
+                f"Location={connection_info['city']}, {connection_info['region']}, "
+                f"ISP={connection_info['isp']}"
+            )
+        except Exception as e:
+            click.echo(f"Note: Could not fetch connection details: {e}")
+
         if location_name:
             click.echo(
                 click.style(

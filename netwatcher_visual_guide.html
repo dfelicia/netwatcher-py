@@ -494,7 +494,14 @@ def set_dns_servers(dns_servers, service_name):
             </div>
 
             <div class="module">
-                <h3>💾 Network Caching</h3>
+                <h3>� Proxy Detection</h3>
+                <p><span class="file-path">src/network/proxy_detection.py</span></p>
+                <p><strong>What it does:</strong> Centralized system proxy detection for all components</p>
+                <p><strong>Example:</strong> Detects PAC/HTTP/HTTPS/SOCKS proxies and parses PAC files automatically</p>
+            </div>
+
+            <div class="module">
+                <h3>�💾 Network Caching</h3>
                 <p><span class="file-path">src/network/cache.py</span></p>
                 <p><strong>What it does:</strong> Remembers answers to avoid asking the same question twice</p>
                 <p><strong>Example:</strong> If we checked "Am I on VPN?" 5 seconds ago, use that answer</p>
@@ -510,8 +517,8 @@ def set_dns_servers(dns_servers, service_name):
             <div class="module">
                 <h3>🔌 External Tools</h3>
                 <p><span class="file-path">src/external/</span></p>
-                <p><strong>What it does:</strong> Talks to other programs (like Cisco VPN client)</p>
-                <p><strong>Example:</strong> Asks VPN software "Are you connected?"</p>
+                <p><strong>What it does:</strong> Talks to other programs (like Cisco VPN client) and external APIs</p>
+                <p><strong>Example:</strong> Fetches IP/location from ip-api.com with automatic proxy support</p>
             </div>
         </div>
 

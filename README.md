@@ -262,11 +262,50 @@ No manual VPN configuration is required - the tool will automatically detect and
 
 ```toml
 [settings]
-debug = false  # Enables DEBUG logging for the background service (can also use --debug with CLI commands like test)
-debounce_seconds = 5
+debug = false  # Enables DEBUG logging for the background service (set to true to see detailed logs)
+debounce_seconds = 5  # Wait time before applying settings after network change
+shell_proxy_enabled = true  # Enable shell proxy integration (added by 'netwatcher shell-proxy setup')
+```
+
+To enable debug logging:
+1. Set `debug = true` in `~/.config/netwatcher/config.toml`
+2. Restart the service: `netwatcher service stop && netwatcher service start`
+3. Monitor logs: `tail -f ~/Library/Logs/netwatcher.log`
+
+For CLI commands, you can also use the `--debug` flag: `netwatcher test --debug`
+
+### Location Settings
+
+Each location in your config defines network-specific settings:
+
+- `ssids = ["MyWiFi", "AnotherWiFi"]`: Wi-Fi network names (SSIDs) for this location
+- `dns_servers = ["8.8.8.8", "1.1.1.1"]`: DNS servers to use (empty list uses DHCP)
+- `dns_search_domains = ["mycompany.com"]`: DNS search domains for this location (these domains are used for both location detection and network configuration)
+- `proxy_url = "http://proxy.company.com/proxy.pac"`: Proxy configuration - supports PAC/WPAD URLs, HTTP proxies (http://host:port), HTTPS proxies (https://host:port), or SOCKS proxies (socks://host:port)
+
+⚠️ **Security Note**: WPAD (Web Proxy Auto-Discovery) should only be used on trusted networks. On untrusted networks, malicious actors could provide rogue WPAD configurations to intercept your traffic. NetWatcher will warn you before using WPAD auto-detection.
+- `printer = "Office_Printer"`: Default printer name (must match System Settings)
+- `ntp_server = "time.company.com"`: Network Time Protocol (NTP) server
+
+### VPN Detection
+
+NetWatcher automatically detects VPN connections and can provide status information for supported VPN clients:
+
+- **Cisco VPN**: Auto-detected when service ID contains "com.cisco" and VPN binary is found
+- **Generic VPN**: Detected via utun interface routing
+- **Status Display**: Shows connection details in menu bar when available
+
+No manual VPN configuration is required - the tool will automatically detect and display VPN status when active.
+
+### Example Configuration
+
+```toml
+[settings]
+debug = false  # Enables DEBUG logging for the background service (set to true to see detailed logs)
+debounce_seconds = 5  # Wait time before applying settings after network change
+shell_proxy_enabled = true  # Enable shell proxy integration (added by 'netwatcher shell-proxy setup')
 
 [locations.Home]
-ssids = ["HomeWiFi", "HomeWiFi_5G"]
 dns_servers = []  # Use DHCP
 dns_search_domains = ["home.arpa"]
 proxy_url = ""
@@ -316,9 +355,13 @@ NetWatcher is organized into focused modules:
 - **`detection.py`**: Network state detection (SSID, DNS, VPN status)
 - **`interfaces.py`**: Network interface and service management
 - **`configuration.py`**: Network settings application (DNS, proxy, NTP)
+- **`proxy_detection.py`**: Centralized system proxy detection (PAC, HTTP, HTTPS, SOCKS)
+- **`pac_parser.py`**: PAC file parsing and proxy extraction
+- **`shell_proxy.py`**: Shell environment proxy configuration management
+- **`cache.py`**: Network state caching for performance optimization
 
 #### **`src/external/`** - External Service Integrations
-- **`ipinfo.py`**: Connection details from ip-api.com
+- **`ipinfo.py`**: Connection details from ip-api.com with proxy support
 - **`wpad.py`**: WPAD proxy configuration
 - **`vpn.py`**: VPN client integrations (Cisco, etc.)
 
@@ -330,18 +373,25 @@ NetWatcher is organized into focused modules:
 - **`commands.py`**: Command execution with error handling
 - **`native.py`**: Native macOS SystemConfiguration APIs
 
-#### **Legacy Compatibility**
-- **`src/actions.py`**: Main API module that re-exports functions from new modules
+#### **`src/logging_config.py`** - Centralized Logging
+- Unified logging configuration for the entire application
+- Supports both DEBUG and INFO levels via config.toml or CLI flags
 
 This modular design makes the codebase easier to understand, maintain, and extend. New developers can focus on specific functionality without needing to understand the entire system.
 
 ### Development and Imports
 
-For new development, you can import directly from specific modules:
+Import directly from specific modules:
 
 ```python
 # Network operations
-from src.network import get_current_ssid, is_vpn_active, set_dns_servers
+from src.network import (
+    get_current_ssid,
+    is_vpn_active,
+    set_dns_servers,
+    get_system_proxy_config,
+    get_urllib_proxy_handler
+)
 
 # External services
 from src.external import get_connection_details, get_proxy_from_wpad
@@ -351,12 +401,9 @@ from src.location import find_matching_location, apply_location_settings
 
 # Utilities
 from src.utils import run_command
-```
 
-Alternatively, use the main actions module for the complete API:
-```python
-from src import actions
-# All functions available: actions.get_current_ssid(), etc.
+# Logging
+from src.logging_config import get_logger, setup_logging
 ```
 
 ## Troubleshooting
