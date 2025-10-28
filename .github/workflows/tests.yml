@@ -7,6 +7,11 @@ on:
     branches: [ main, develop ]
   workflow_dispatch:  # Allow manual trigger
 
+permissions:
+  contents: read
+  checks: write  # Required for test-reporter action
+  statuses: write
+
 jobs:
   test:
     runs-on: macos-latest
