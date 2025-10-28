@@ -101,7 +101,7 @@ def parse_pac_file_for_generic_url(
                 pass
 
     except urllib.error.URLError as e:
-        logger.error(f"Failed to download PAC file from {pac_url}: {e}")
+        logger.info(f"PAC file not accessible at {pac_url} (network may have changed)")
         return None
     except Exception as e:
         logger.error(f"Error parsing PAC file from {pac_url}: {e}")
