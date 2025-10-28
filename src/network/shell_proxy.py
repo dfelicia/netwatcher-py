@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from ..logging_config import get_logger
-from .proxy_detection import get_proxy_url_for_shell
 from .. import config
 
 logger = get_logger(__name__)
