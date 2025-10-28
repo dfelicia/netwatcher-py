@@ -179,25 +179,31 @@ NetWatcher automatically detects VPN connections and can provide status informat
 
 No manual VPN configuration is required - the tool will automatically detect and display VPN status when active.
 
-### Example Configuration
+### Global Settings
 
-```toml
-[settings]
-debug = false  # Enables DEBUG logging for the background service (set to true to see detailed logs)
-debounce_seconds = 5  # Wait time before applying settings after network change
-shell_proxy_enabled = true  # Enable shell proxy integration (added by 'netwatcher shell-proxy setup')
-```
+The `[settings]` section in your config.toml controls application-wide behavior:
 
-To enable debug logging:
+- `debug = false`: Enables DEBUG logging for the background service (set to true for detailed logs)
+- `debounce_seconds = 5`: Wait time before applying settings after network change
+- `shell_proxy_enabled = true`: Enable shell proxy integration (added by `netwatcher shell-proxy setup`)
+
+**To enable debug logging:**
 1. Set `debug = true` in `~/.config/netwatcher/config.toml`
 2. Restart the service: `netwatcher service stop && netwatcher service start`
 3. Monitor logs: `tail -f ~/Library/Logs/netwatcher.log`
 
 For CLI commands, you can also use the `--debug` flag: `netwatcher test --debug`
 
-### Example Locations
+### Example Configuration
+
+Complete example showing multiple locations:
 
 ```toml
+[settings]
+debug = false
+debounce_seconds = 5
+shell_proxy_enabled = true
+
 [locations.Home]
 dns_servers = []  # Use DHCP
 dns_search_domains = ["home.arpa"]
@@ -265,13 +271,7 @@ Shell proxy integration provides:
 - `rsync_proxy` - Special format for rsync (host:port without protocol)
 - `no_proxy`, `NO_PROXY` - Bypass addresses for local and corporate domains
 
-### Configuration
-
-```toml
-[settings]
-shell_proxy_enabled = true  # Enable shell proxy integration
-shell_proxy_shells = ["bash", "zsh", "fish"]  # Optional: specify shells
-```
+You can optionally specify which shells to configure by adding `shell_proxy_shells = ["bash", "zsh", "fish"]` to the `[settings]` section in your config.toml.
 
 ## Architecture
 
