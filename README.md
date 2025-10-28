@@ -111,92 +111,9 @@ netwatcher service install
 
 The application will start automatically and you'll see the NetWatcher icon in your menu bar. You can monitor its activity in the log file at `~/Library/Logs/netwatcher.log`.
 
-### Step 6: Set Up Shell Proxy Integration (Optional)
-
-NetWatcher can automatically configure proxy environment variables for terminal applications, eliminating the need to manually set proxy variables or run slow scripts in your shell startup files.
-
-#### Enable Shell Proxy Support
-
-```bash
-# Set up shell proxy integration for all detected shells
-netwatcher shell-proxy setup
-
-# Check the status of shell proxy integration
-netwatcher shell-proxy status
-
-# Remove shell proxy integration if needed
-netwatcher shell-proxy remove
-```
-
-#### How It Works
-
-Shell proxy integration provides:
-
-- **Automatic proxy configuration** for terminal applications (`curl`, `wget`, `pip`, `npm`, `brew`, etc.)
-- **PAC/WPAD file parsing** to extract actual proxy servers automatically
-- **Multi-shell support** for bash, zsh, tcsh/csh, and fish shells
-- **Smart bypass domains** including standard localhost addresses and domains managed by NetWatcher
-- **Interactive-only activation** - proxy settings only apply to interactive shell sessions
-- **Location-aware cleanup** - proxy settings are automatically removed when switching to locations without proxies
-- **Automatic configuration management** - setup automatically adds configuration options, removal automatically disables the feature
-- **Efficient file management** - proxy files are deleted when not needed instead of writing unset commands
-
-#### Supported Environment Variables
-
-NetWatcher sets all standard proxy environment variables:
-
-- `http_proxy`, `https_proxy`, `ftp_proxy`, `all_proxy` - Standard proxy variables
-- `HTTP_PROXY`, `HTTPS_PROXY`, `FTP_PROXY`, `ALL_PROXY` - Legacy uppercase versions
-- `rsync_proxy` - Special format for rsync (host:port without protocol)
-- `no_proxy`, `NO_PROXY` - Bypass addresses for local and corporate domains
-
-#### Configuration
-
-Shell proxy support can be configured in your `config.toml`:
-
-```toml
-[settings]
-# Enable/disable shell proxy integration
-shell_proxy_enabled = true
-
-# Optional: specify which shells to configure (defaults to all detected)
-shell_proxy_shells = ["bash", "zsh", "fish"]
-```
-
-Shell integration is automatically applied when network locations change, providing seamless proxy management for both GUI and terminal applications.
-
 ## Upgrading NetWatcher
 
-### From Version 0.1.0 or Earlier
-
-If you have NetWatcher 0.1.0 or earlier installed, you **must** force reinstall due to significant internal changes in version 0.2.0, including a new centralized logging system:
-
-```bash
-# Navigate to your NetWatcher directory
-cd /path/to/netwatcher-py
-
-# Pull the latest changes
-git pull origin main
-
-# Activate your virtual environment
-source .venv/bin/activate
-
-# Stop the service if running (ok if it fails - might not be running)
-netwatcher service stop || echo "Service was not running or already stopped"
-
-# Force reinstall with the new version
-pip install --force-reinstall --editable .
-
-# Verify the upgrade
-netwatcher --help
-
-# Restart the service
-netwatcher service start
-```
-
-### For All Other Updates
-
-For routine updates, a simple reinstall is usually sufficient:
+To update to the latest version:
 
 ```bash
 # Navigate to your NetWatcher directory and pull changes
@@ -205,6 +122,10 @@ cd /path/to/netwatcher-py && git pull origin main
 # Activate virtual environment and reinstall
 source .venv/bin/activate
 pip install --editable .
+
+# Restart the service to apply changes
+netwatcher service stop
+netwatcher service start
 ```
 
 ## Using the CLI
@@ -274,37 +195,9 @@ To enable debug logging:
 
 For CLI commands, you can also use the `--debug` flag: `netwatcher test --debug`
 
-### Location Settings
-
-Each location in your config defines network-specific settings:
-
-- `ssids = ["MyWiFi", "AnotherWiFi"]`: Wi-Fi network names (SSIDs) for this location
-- `dns_servers = ["8.8.8.8", "1.1.1.1"]`: DNS servers to use (empty list uses DHCP)
-- `dns_search_domains = ["mycompany.com"]`: DNS search domains for this location (these domains are used for both location detection and network configuration)
-- `proxy_url = "http://proxy.company.com/proxy.pac"`: Proxy configuration - supports PAC/WPAD URLs, HTTP proxies (http://host:port), HTTPS proxies (https://host:port), or SOCKS proxies (socks://host:port)
-
-⚠️ **Security Note**: WPAD (Web Proxy Auto-Discovery) should only be used on trusted networks. On untrusted networks, malicious actors could provide rogue WPAD configurations to intercept your traffic. NetWatcher will warn you before using WPAD auto-detection.
-- `printer = "Office_Printer"`: Default printer name (must match System Settings)
-- `ntp_server = "time.company.com"`: Network Time Protocol (NTP) server
-
-### VPN Detection
-
-NetWatcher automatically detects VPN connections and can provide status information for supported VPN clients:
-
-- **Cisco VPN**: Auto-detected when service ID contains "com.cisco" and VPN binary is found
-- **Generic VPN**: Detected via utun interface routing
-- **Status Display**: Shows connection details in menu bar when available
-
-No manual VPN configuration is required - the tool will automatically detect and display VPN status when active.
-
-### Example Configuration
+### Example Locations
 
 ```toml
-[settings]
-debug = false  # Enables DEBUG logging for the background service (set to true to see detailed logs)
-debounce_seconds = 5  # Wait time before applying settings after network change
-shell_proxy_enabled = true  # Enable shell proxy integration (added by 'netwatcher shell-proxy setup')
-
 [locations.Home]
 dns_servers = []  # Use DHCP
 dns_search_domains = ["home.arpa"]
@@ -338,6 +231,48 @@ ntp_server = "time.apple.com"
 
 **Note**: VPN detection and status display is automatic - no manual configuration required.
 
+## Shell Proxy Integration
+
+NetWatcher can automatically configure proxy environment variables for terminal applications, eliminating the need to manually set proxy variables in your shell configuration files.
+
+### Setup Commands
+
+```bash
+# Set up shell proxy integration for all detected shells
+netwatcher shell-proxy setup
+
+# Check the status of shell proxy integration
+netwatcher shell-proxy status
+
+# Remove shell proxy integration if needed
+netwatcher shell-proxy remove
+```
+
+### How It Works
+
+Shell proxy integration provides:
+- **Automatic proxy configuration** for terminal applications (`curl`, `wget`, `pip`, `npm`, `brew`, etc.)
+- **PAC/WPAD file parsing** to extract actual proxy servers automatically
+- **Multi-shell support** for bash, zsh, tcsh/csh, and fish shells
+- **Smart bypass domains** including localhost and domains managed by NetWatcher
+- **Interactive-only activation** - proxy settings only apply to interactive shell sessions
+- **Location-aware cleanup** - proxy settings are automatically removed when switching to locations without proxies
+
+### Environment Variables Set
+
+- `http_proxy`, `https_proxy`, `ftp_proxy`, `all_proxy` - Standard proxy variables
+- `HTTP_PROXY`, `HTTPS_PROXY`, `FTP_PROXY`, `ALL_PROXY` - Legacy uppercase versions
+- `rsync_proxy` - Special format for rsync (host:port without protocol)
+- `no_proxy`, `NO_PROXY` - Bypass addresses for local and corporate domains
+
+### Configuration
+
+```toml
+[settings]
+shell_proxy_enabled = true  # Enable shell proxy integration
+shell_proxy_shells = ["bash", "zsh", "fish"]  # Optional: specify shells
+```
+
 ## Architecture
 
 NetWatcher uses a modular architecture for maintainability and clarity:
@@ -362,8 +297,7 @@ NetWatcher is organized into focused modules:
 
 #### **`src/external/`** - External Service Integrations
 - **`ipinfo.py`**: Connection details from ip-api.com with proxy support
-- **`wpad.py`**: WPAD proxy configuration
-- **`vpn.py`**: VPN client integrations (Cisco, etc.)
+- **`vpn.py`**: VPN client integrations (Cisco, generic utun detection)
 
 #### **`src/location/`** - Location Logic
 - **`matching.py`**: Network environment to location profile matching
@@ -394,7 +328,7 @@ from src.network import (
 )
 
 # External services
-from src.external import get_connection_details, get_proxy_from_wpad
+from src.external import get_connection_details
 
 # Location logic
 from src.location import find_matching_location, apply_location_settings
@@ -425,13 +359,13 @@ from src.logging_config import get_logger, setup_logging
 
 ### Wi-Fi Scanning Issues
 - **You must use system Python**: `/usr/bin/python3 -m venv .venv`
-- Ensure location services are enabled for Terminal/iTerm in System Settings
+- Ensure Location Services are enabled for Terminal/iTerm and Python in System Settings > Privacy and Security
 - This is not optional - Wi-Fi scanning will not work with other Python versions
 
 ### VPN Detection Issues
 - VPN status is only displayed when on a VPN (utun) interface
 - Cisco VPN details require the VPN CLI binary to be installed
-- Auto-detection works for most common VPN clients without configuration
+- Detection is automatic for all VPN clients using standard utun interfaces
 
 ### Menu Bar App Issues
 - **Do not click the menu bar icon while network changes are being processed** - this can cause the app to crash and automatically respawn
