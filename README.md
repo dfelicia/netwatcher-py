@@ -80,7 +80,7 @@ NetWatcher requires elevated privileges to modify system network settings. Confi
 3. Add the following lines (replace `your_username` with your actual macOS username):
    ```
    # Allow NetWatcher to run required network commands without a password
-   Cmnd_Alias NETWATCHER_CMDS = /usr/sbin/networksetup, /usr/sbin/systemsetup, /usr/sbin/lpadmin, /usr/bin/sntp, /bin/mkdir /etc/resolver, /bin/rm /etc/resolver/*, /usr/bin/tee /etc/resolver/*, /usr/bin/dscacheutil -flushcache
+   Cmnd_Alias NETWATCHER_CMDS = /usr/sbin/networksetup, /usr/sbin/systemsetup, /usr/sbin/lpadmin, /usr/bin/sntp, /bin/mkdir /etc/resolver, /bin/rm /etc/resolver/*, /usr/bin/tee /etc/resolver/*, /usr/bin/dscacheutil -flushcache, /usr/bin/killall -HUP mDNSResponder
    your_username ALL=(ALL) NOPASSWD: NETWATCHER_CMDS
    ```
 

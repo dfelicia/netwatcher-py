@@ -1412,6 +1412,7 @@ def check():
         ("/usr/bin/tee", ["/etc/resolver/netwatcher-test.tmp"]),
         ("/bin/rm", ["-f", "/etc/resolver/netwatcher-test.tmp"]),
         ("/usr/bin/dscacheutil", ["-flushcache"]),
+        ("/usr/bin/killall", ["-HUP", "mDNSResponder"]),
     ]
 
     all_passed = True
@@ -1481,7 +1482,7 @@ def check():
             "     # Allow NetWatcher to run required network commands without a password"
         )
         click.echo(
-            "     Cmnd_Alias NETWATCHER_CMDS = /usr/sbin/networksetup, /usr/sbin/systemsetup, /usr/sbin/lpadmin, /usr/bin/sntp, /bin/mkdir /etc/resolver, /bin/rm /etc/resolver/*, /usr/bin/tee /etc/resolver/*, /usr/bin/dscacheutil -flushcache"
+            "     Cmnd_Alias NETWATCHER_CMDS = /usr/sbin/networksetup, /usr/sbin/systemsetup, /usr/sbin/lpadmin, /usr/bin/sntp, /bin/mkdir /etc/resolver, /bin/rm /etc/resolver/*, /usr/bin/tee /etc/resolver/*, /usr/bin/dscacheutil -flushcache, /usr/bin/killall -HUP mDNSResponder"
         )
         click.echo("     $USER ALL=(ALL) NOPASSWD: NETWATCHER_CMDS")
         click.echo("\nSee the README for detailed setup instructions.")
