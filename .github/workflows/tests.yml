@@ -22,6 +22,17 @@ jobs:
         # Use Apple's system Python (required for CoreLocation)
         /usr/bin/python3 --version
         which python3
+        /usr/bin/python3 -m pip --version || echo "pip not available"
+
+    - name: Install pip if needed
+      run: |
+        # Ensure pip is available
+        if ! /usr/bin/python3 -m pip --version 2>/dev/null; then
+          echo "Installing pip..."
+          curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+          /usr/bin/python3 get-pip.py --user
+          rm get-pip.py
+        fi
 
     - name: Install system dependencies (macOS)
       run: |
@@ -30,8 +41,8 @@ jobs:
 
     - name: Install Python dependencies
       run: |
-        /usr/bin/python3 -m pip install --upgrade pip setuptools wheel
-        /usr/bin/python3 -m pip install -e ".[test]"
+        /usr/bin/python3 -m pip install --upgrade pip setuptools wheel --user
+        /usr/bin/python3 -m pip install -e ".[test]" --user
 
     - name: Run tests with pytest
       run: |
@@ -78,11 +89,12 @@ jobs:
     - name: Verify system Python
       run: |
         /usr/bin/python3 --version
+        /usr/bin/python3 -m pip --version || echo "pip not available"
 
     - name: Install dependencies
       run: |
-        /usr/bin/python3 -m pip install --upgrade pip
-        /usr/bin/python3 -m pip install -e ".[dev]"
+        /usr/bin/python3 -m pip install --upgrade pip --user
+        /usr/bin/python3 -m pip install -e ".[dev]" --user
 
     - name: Lint with ruff
       run: |
