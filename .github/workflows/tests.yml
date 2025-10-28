@@ -42,7 +42,13 @@ jobs:
     - name: Install Python dependencies
       run: |
         /usr/bin/python3 -m pip install --upgrade pip setuptools wheel --user
-        /usr/bin/python3 -m pip install -e ".[test]" --user
+        # Editable install needs to go to site-packages, not --user
+        /usr/bin/python3 -m pip install -e ".[test]"
+
+    - name: Verify installation
+      run: |
+        /usr/bin/python3 -c "import src; print('NetWatcher imported successfully')"
+        /usr/bin/python3 -m pytest --version
 
     - name: Run tests with pytest
       run: |
@@ -61,7 +67,7 @@ jobs:
         fail_ci_if_error: false
 
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results
@@ -94,7 +100,8 @@ jobs:
     - name: Install dependencies
       run: |
         /usr/bin/python3 -m pip install --upgrade pip --user
-        /usr/bin/python3 -m pip install -e ".[dev]" --user
+        # Editable install works better without --user flag
+        /usr/bin/python3 -m pip install -e ".[dev]"
 
     - name: Lint with ruff
       run: |
