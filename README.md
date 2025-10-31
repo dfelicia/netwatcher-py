@@ -24,7 +24,7 @@ NetWatcher is built with Python and uses native macOS frameworks for reliable, e
   - **Shell proxy configuration** - Automatic proxy setup for terminal applications (bash, zsh, tcsh/csh, fish)
   - Default printer selection
   - Network Time Protocol (NTP) server configuration
-- **VPN detection and status display** (configurable for various VPN clients)
+- **Automatic VPN detection and status display** for Cisco VPN and generic VPN connections
 - **One-click testing** from the menu bar with log file integration
 - **Comprehensive logging** for debugging and monitoring
 
@@ -34,7 +34,8 @@ Before you begin, ensure you have the following:
 
 1. **macOS**: This tool is designed exclusively for macOS (tested on macOS 10.15+)
 2. **Python**: Only Apple's shipped version of Python 3 can be used (due to code signing requirements for location services)
-3. **Administrator access**: Required for network configuration changes
+3. **Location Services**: Must be enabled for Terminal/iTerm and Python to allow Wi-Fi scanning
+4. **Administrator access**: Required for network configuration changes
 
 ## Setup and Installation
 
@@ -45,11 +46,22 @@ git clone https://github.com/dfelicia/netwatcher-py.git
 cd netwatcher-py
 ```
 
-### Step 2: Create a Virtual Environment & Install Dependencies
+### Step 2: Enable Location Services for Wi-Fi Scanning
 
-**Important: Wi-Fi Scanning Requires System Python**
+**IMPORTANT: Required for Wi-Fi Network Discovery**
 
-For Wi-Fi network discovery to work during configuration, you **must** use the system Python interpreter provided by Apple. This is the only version with the proper code signature that macOS trusts for Wi-Fi scanning.
+NetWatcher needs to scan available Wi-Fi networks during configuration. This requires:
+
+1. Using Apple's system Python (the only version with proper code signing)
+2. Enabling Location Services for Terminal/iTerm and Python
+
+To enable Location Services:
+1. Open **System Settings** > **Privacy & Security** > **Location Services**
+2. Enable Location Services if not already enabled
+3. Scroll down and ensure **Terminal** (or **iTerm**) is checked
+4. If prompted during Wi-Fi scanning, allow Python to access location services
+
+### Step 3: Create a Virtual Environment & Install Dependencies
 
 ```bash
 # Create and activate a virtual environment using Apple's system Python
@@ -61,9 +73,7 @@ pip install --upgrade pip setuptools
 pip install --editable .
 ```
 
-This ensures that Wi-Fi scanning during the `netwatcher configure` step works correctly.
-
-### Step 3: Configure Passwordless Sudo
+### Step 4: Configure Passwordless Sudo
 
 NetWatcher requires elevated privileges to modify system network settings. Configure passwordless execution for required commands:
 
@@ -89,7 +99,7 @@ NetWatcher requires elevated privileges to modify system network settings. Confi
    netwatcher check
    ```
 
-### Step 4: Configure Your Network Locations
+### Step 5: Configure Your Network Locations
 
 Run the interactive configuration wizard to create your `config.toml` file:
 
@@ -101,7 +111,7 @@ The configuration wizard will guide you through setting up network locations and
 
 The configuration will be saved to `~/.config/netwatcher/config.toml`.
 
-### Step 5: Install the Service
+### Step 6: Install the Service
 
 Install the LaunchAgent to have NetWatcher run automatically in the background:
 
