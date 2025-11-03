@@ -274,15 +274,15 @@ class NetWatcherApp(rumps.App):
             self.debounce_timer.cancel()
 
         # Only log the debounce message if there wasn't already a timer running
-        if not timer_was_active:
-            self.logger.info("Network change detected, evaluating after debounce")
-
         # Simple approach like bash script: just wait for things to settle, then evaluate
         debounce_seconds = self.config.get("settings", {}).get("debounce_seconds", 5)
         self.debounce_timer = Timer(
             float(debounce_seconds), self.evaluate_network_state
         )
         self.debounce_timer.start()
+
+        if not timer_was_active:
+            self.logger.debug("Network change detected, starting debounce timer")
 
     def evaluate_network_state(self, *args):
         """The core logic to check network and apply settings."""
@@ -294,7 +294,7 @@ class NetWatcherApp(rumps.App):
         self.is_evaluating = True
 
         try:
-            self.logger.info("Evaluating network state after debounce")
+            self.logger.debug("Evaluating network state after debounce")
 
             # Clear network state cache to ensure fresh data
             clear_cache()
@@ -357,8 +357,8 @@ class NetWatcherApp(rumps.App):
                     vpn_status=vpn_details,
                 )
             else:
-                self.logger.debug(
-                    f"No change in location ({new_location}) or VPN state, skipping apply"
+                self.logger.info(
+                    f"No changes detected: location='{new_location}', VPN active={vpn_active}"
                 )
 
         finally:
